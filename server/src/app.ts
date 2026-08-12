@@ -6,10 +6,15 @@ const app = express()
 
 app.use(express.json())
 
-// Liveness landing route — foundation only.
-// GET /api/health arrives in Issue #2, GET /api/categories in Issue #4.
+// Liveness landing route.
 app.get('/', (_req, res) => {
   res.json({ service: 'TokTickIT API', message: 'Foundation running.' })
+})
+
+// GET /api/health — health-check contract (Lab 1 §7.2, §10.1).
+// GET /api/categories arrives in Issue #4.
+app.get('/api/health', (_req, res) => {
+  res.status(200).json({ status: 'ok', service: 'TokTickIT API' })
 })
 
 export default app
