@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Environment / secrets — never commit real .env files
+.env
+.env.*
+!.env.example
+
+# Build output
+dist/
+build/
+client/dist/
+server/dist/
+
+# Prisma generated client (regenerated with `prisma generate`)
+server/src/generated/
+
+# Test / tooling caches
+coverage/
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
