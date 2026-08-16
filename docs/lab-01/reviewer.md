@@ -37,16 +37,39 @@ now fails if the order regresses. Re-requested review; the reviewer then approve
 
 ## Pull Requests I reviewed for my partner
 
-_TODO — pending: my partner adds me as a collaborator on their repo, then I review their PRs and
-record the links, my review comment, and their response here (the reciprocal direction §14 Part 1
-requires)._
+Reviewed on [jakkarin-promsee/toktickit](https://github.com/jakkarin-promsee/toktickit).
 
-| Issue | PR | Title | Link | Verdict |
-| --- | --- | --- | --- | --- |
-| _TODO_ | _TODO_ | _TODO_ | _TODO_ | _TODO_ |
+| Issue | PR | Title | Verdict |
+| --- | --- | --- | --- |
+| #1 | [#5](https://github.com/jakkarin-promsee/toktickit/pull/5) | Set up the TokTickIT project foundation | Approved (single round) |
+| #2 | [#6](https://github.com/jakkarin-promsee/toktickit/pull/6) | Implement the API health check | Approved (single round, 6 inline comments) |
+| #3 | [#7](https://github.com/jakkarin-promsee/toktickit/pull/7) | Create and seed IT request categories | Requested changes → fixed → Approved (two rounds) |
+| #4 | [#8](https://github.com/jakkarin-promsee/toktickit/pull/8) | Display the IT request category list | Approved (single round, 6 inline comments) |
 
-### Review comment I gave and how my partner responded
+### Review comment I gave and how my partner responded (PR #7)
 
-> **Me:** _TODO_
+The clearest round-trip, mirroring the PR #8 exchange above.
 
-**Partner's response:** _TODO_
+> **Me (round 1, Requested changes):** The model, the migration, and the upsert seed all match the
+> Issue #3 spec. I pulled the branch and ran `npx prisma db seed` twice — 4 rows both times, and
+> `createdAt` did not move on the second run, so the idempotency claim holds. Two things before I
+> approve: a set of editor/cache files that should not be in the repository, and an error path in
+> the seed that skips `$disconnect()`. Both are in the line comments.
+
+**Jakkarin's response:** Fixed both. On the ignored files: *"Agreed, these came in on a `git add .`
+… Removed both from the index with `git rm -r --cached .obsidian client/.vite` and added the rules
+you suggested … Verified with a clean `git status`."* On the seed script: *"Good catch, I had the
+semantics backwards … Switched to `process.exitCode = 1`."*
+
+> **Me (round 2, Approve):** Both fixed, verified against the current branch, not just the
+> description … AC 1–5 all still hold after the merge from `lab1-staging`. Approving.
+
+**Other PRs (#5, #6, #8):** approved in a single round each, with substantive top-level comments and
+inline line comments (verified test output, walked through the failure paths, checked design
+decisions like the 503-vs-500 status choice on #8). No blocking issues found; Jakkarin merged
+directly without a text reply since nothing required a fix.
+
+> **Accuracy note:** the exact comment text above was reconstructed from the rendered GitHub pages,
+> not the raw markdown, so formatting may not be byte-for-byte identical to what's posted. Verified
+> substantively correct. Copy the live text directly from GitHub before citing this for grading if
+> exact wording matters.
