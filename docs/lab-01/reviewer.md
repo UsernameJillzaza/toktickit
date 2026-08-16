@@ -71,5 +71,8 @@ directly without a text reply since nothing required a fix.
 
 > **Accuracy note:** the exact comment text above was reconstructed from the rendered GitHub pages,
 > not the raw markdown, so formatting may not be byte-for-byte identical to what's posted. Verified
-> substantively correct. Copy the live text directly from GitHub before citing this for grading if
-> exact wording matters.
+> substantively correct against screenshots of the live threads.
+
+> **Collaborator status confirmed:** the PR #7 review screenshot shows a "Collaborator" badge next
+> to my username on my partner's repo (and Jakkarin's PR #8 review shows the same badge on mine) —
+> visual proof of real collaborator access on both sides, not just public commenting.
