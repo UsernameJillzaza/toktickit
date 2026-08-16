@@ -11,11 +11,11 @@ describe('GET /api/categories', () => {
     expect(res.status).toBe(200)
     expect(res.body).toHaveLength(4)
 
+    // Assert the exact order, not just presence — §7.4 requires a predictable
+    // order and §10.2 specifies ascending id. `toContain` would pass even if
+    // the API returned rows in an arbitrary order.
     const names = res.body.map((c: { name: string }) => c.name)
-    expect(names).toContain('Account and Access')
-    expect(names).toContain('Hardware')
-    expect(names).toContain('Software')
-    expect(names).toContain('Network')
+    expect(names).toEqual(['Account and Access', 'Hardware', 'Software', 'Network'])
 
     expect(res.body[0]).toHaveProperty('id')
   })
