@@ -221,7 +221,13 @@ app.get('/api/tickets', async (req, res) => {
 
   try {
     const [items, total] = await Promise.all([
-      prisma.ticket.findMany({ where, orderBy, skip: (page - 1) * pageSize, take: pageSize }),
+      prisma.ticket.findMany({
+        where,
+        orderBy,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        include: { category: { select: { name: true } } },
+      }),
       prisma.ticket.count({ where }),
     ])
     res.status(200).json({ items, page, pageSize, total })
