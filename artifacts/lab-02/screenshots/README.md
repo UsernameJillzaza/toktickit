@@ -1,20 +1,26 @@
 # Lab 2 UI Screenshots
 
-Expected layout (per labsheet §12 and `e2e/lab-02/requester-ticket-flow.spec.ts`):
-
 ```
 create-ticket/{desktop,tablet,mobile}.png
 my-tickets/{desktop,tablet,mobile}.png
 ticket-detail/{desktop,tablet,mobile}.png
 ```
 
-**Not populated in this PR.** The Playwright spec that generates these could not run in the
-sandboxed environment this Issue was implemented in — `npx playwright install chromium` timed out
-downloading the browser binary against what looks like a network restriction on that specific host
-(retried against a mirror too; the npm registry itself was reachable throughout, so this wasn't
-general connectivity). Run `npx playwright install chromium && npx playwright test` with `server`
-and `client` both running to populate this folder for real, then commit the 9 PNGs.
+**Populated 2026-09-06** by `e2e/lab-02/requester-ticket-flow.spec.ts`, run for real. The Playwright
+*browser binary* download (`npx playwright install chromium`) is still blocked in this sandbox
+(network restriction on the download host, confirmed against two mirrors) — worked around by
+pointing `playwright.config.ts` at the system's already-installed Microsoft Edge instead
+(`channel: 'msedge'`), which needs no additional download at all.
 
-The actual UI was verified manually at all three breakpoints instead (see the PR description) and
-the responsive bugs that check found — an overlapping mobile nav, and My Tickets not switching to
-a card layout on mobile — were fixed as part of this Issue, not just noted.
+Two real bugs surfaced (and were fixed, not just noted) writing the spec itself: each Playwright
+`test()` gets a fresh browser context, so a first attempt split across separate `test()` blocks per
+screenshot lost the selected-Requester `localStorage` value between them — fixed by doing the whole
+capture in one continuous test. Second, the desktop table and mobile card both exist in the DOM
+simultaneously (only one is `display:none` per breakpoint), so a plain `.first()` locator could
+resolve to the hidden one depending on viewport — fixed with an explicit `visible=true` filter.
+
+To regenerate: start `server` and `client` (`npm run dev` in each), then from the repo root:
+
+```powershell
+npx playwright test
+```
