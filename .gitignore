@@ -15,6 +15,10 @@ server/dist/
 # Prisma generated client (regenerated with `prisma generate`)
 server/src/generated/
 
+# Uploaded attachments (Lab 2 D-04: local disk, path stored in DB) — user
+# content, not source; never committed.
+server/uploads/
+
 # Test / tooling caches
 coverage/
 *.tsbuildinfo
