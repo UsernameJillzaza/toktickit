@@ -34,3 +34,6 @@ Thumbs.db
 # Playwright artifacts
 test-results/
 playwright-report/
+
+# Local Claude Code dev-server launch config (machine-specific paths)
+.claude/
