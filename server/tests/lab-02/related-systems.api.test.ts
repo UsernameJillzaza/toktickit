@@ -12,9 +12,19 @@ describe('GET /api/related-systems', () => {
     expect(res.body.length).toBeGreaterThanOrEqual(6)
 
     const names: string[] = res.body.map((r: { name: string }) => r.name)
-    expect(names).toContain('Email')
-    expect(names).toContain('VPN')
-    expect(names).toContain('Corporate Laptop')
+    // Assert all 7 seeded names, not just a sample — a missing seed item
+    // should fail this test, not slip through unnoticed.
+    expect(names).toEqual(
+      expect.arrayContaining([
+        'Email',
+        'Campus Wi-Fi',
+        'VPN',
+        'LEB2 App',
+        'Grade Submission App',
+        'Printer',
+        'Corporate Laptop',
+      ]),
+    )
 
     const sorted = [...names].sort((a, b) => a.localeCompare(b))
     expect(names).toEqual(sorted)
