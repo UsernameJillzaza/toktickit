@@ -159,4 +159,76 @@ app.post('/api/tickets', async (req, res) => {
   }
 })
 
+function parseIntParam(value: unknown, fallback: number): number | null {
+  if (value === undefined) return fallback
+  const n = Number(value)
+  if (!Number.isInteger(n)) return null
+  return n
+}
+
+// GET /api/tickets — My Tickets list (Lab 2 §6.1, Issue #17). BR-06: always
+// scoped to `requesterId` — this is the line that keeps Requester A from
+// ever seeing Requester B's tickets. BR-17/BR-18: pageSize capped at 50
+// (not an error), default sort createdAt desc with id desc as a stable
+// secondary sort.
+app.get('/api/tickets', async (req, res) => {
+  const requesterId = parseIntParam(req.query.requesterId, NaN)
+  if (requesterId === null || Number.isNaN(requesterId)) {
+    return res.status(400).json({ error: 'requesterId is required' })
+  }
+
+  const page = parseIntParam(req.query.page, 1)
+  if (page === null || page < 1) {
+    return res.status(400).json({ error: 'Invalid page' })
+  }
+
+  let pageSize = parseIntParam(req.query.pageSize, 10)
+  if (pageSize === null || pageSize < 1) {
+    return res.status(400).json({ error: 'Invalid pageSize' })
+  }
+  if (pageSize > 50) pageSize = 50 // BR-17: cap silently, do not error
+
+  const sortParam = typeof req.query.sort === 'string' ? req.query.sort : 'createdAt:desc'
+  const sortMatch = /^(createdAt|summary):(asc|desc)$/.exec(sortParam)
+  if (!sortMatch) {
+    return res.status(400).json({ error: 'Invalid sort' })
+  }
+  const sortField = sortMatch[1] as 'createdAt' | 'summary'
+  const sortDir = sortMatch[2] as 'asc' | 'desc'
+
+  const search = typeof req.query.search === 'string' ? req.query.search : ''
+  const categoryId = req.query.categoryId ? Number(req.query.categoryId) : undefined
+  const priority = typeof req.query.priority === 'string' ? req.query.priority : undefined
+
+  const where = {
+    requesterId,
+    ...(categoryId ? { categoryId } : {}),
+    ...(priority ? { requestedPriority: priority } : {}),
+    ...(search
+      ? {
+          OR: [
+            { summary: { contains: search, mode: 'insensitive' as const } },
+            { ticketNumber: { contains: search, mode: 'insensitive' as const } },
+          ],
+        }
+      : {}),
+  }
+
+  const orderBy =
+    sortField === 'summary'
+      ? [{ summary: sortDir }, { id: 'desc' as const }]
+      : [{ createdAt: sortDir }, { id: 'desc' as const }]
+
+  try {
+    const [items, total] = await Promise.all([
+      prisma.ticket.findMany({ where, orderBy, skip: (page - 1) * pageSize, take: pageSize }),
+      prisma.ticket.count({ where }),
+    ])
+    res.status(200).json({ items, page, pageSize, total })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Unable to list tickets' })
+  }
+})
+
 export default app
