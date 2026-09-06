@@ -1,2 +1,26 @@
 /* Bootstrap provides the base styles (imported in main.tsx).
-   App-level overrides go here. */
+   App-level overrides go here.
+
+   Zen Green theme tokens (docs/lab-02/ui-spec.md §1) — override Bootstrap's
+   stock palette rather than inventing parallel custom classes, so every
+   existing btn-success/text-danger/etc. usage picks up the real brand
+   colors for free. --bs-secondary (Bootstrap's neutral grey) is left
+   alone on purpose: it's used for genuinely neutral UI (Change Requester,
+   the Requested Priority badge), which ui-spec.md never asked to be green
+   — only links/tabs/focus accents were specified as "Secondary green". */
+:root {
+  --bs-success: #006b3c; /* Primary green */
+  --bs-success-rgb: 0, 107, 60;
+  --bs-danger: #b3261e; /* Error */
+  --bs-danger-rgb: 179, 38, 30;
+  --bs-warning: #b45309; /* Warning */
+  --bs-warning-rgb: 180, 83, 9;
+  --bs-link-color: #0b7a46; /* Secondary green */
+  --bs-link-color-rgb: 11, 122, 70;
+  --bs-link-hover-color: #085934;
+  --bs-link-hover-color-rgb: 8, 89, 52;
+}
+
+body {
+  background-color: #f5f7f6; /* Page background */
+}
