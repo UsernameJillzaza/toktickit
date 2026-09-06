@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import App from '../../src/App'
+// Lab 2 extracted the health-check page into HomePage.tsx so App.tsx could
+// own routing/shell concerns (see requester/RequireRequester.tsx) — this
+// suite still tests the same page component, just under its new name.
+import App from '../../src/HomePage'
 
 const HEALTH_OK = { status: 'ok', service: 'TokTickIT API' }
 const CATEGORIES = [
