@@ -5,13 +5,23 @@ export type Requester = { id: number; name: string; email: string }
 
 const STORAGE_KEY = 'toktickit.selectedRequester'
 
+function isRequester(value: unknown): value is Requester {
+  if (typeof value !== 'object' || value === null) return false
+  const r = value as Record<string, unknown>
+  return typeof r.id === 'number' && typeof r.name === 'string' && typeof r.email === 'string'
+}
+
 // BR-04: the selected Development Requester is a client-side testing
 // mechanism (BR-03), persisted in localStorage so it survives a page reload.
 function readStoredRequester(): Requester | null {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY)
     if (!raw) return null
-    return JSON.parse(raw) as Requester
+    const parsed = JSON.parse(raw)
+    // Storage was reachable but held something that isn't a Requester
+    // (stale format, manual tampering, `{}`) — fail safe rather than
+    // rendering with e.g. `requester.name` as undefined.
+    return isRequester(parsed) ? parsed : null
   } catch {
     // Corrupt or inaccessible storage (private browsing, quota, etc.) —
     // fail safe back to "no requester selected" rather than throwing.
