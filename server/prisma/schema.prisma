@@ -17,4 +17,65 @@ model Category {
   id        Int      @id @default(autoincrement())
   name      String   @unique
   createdAt DateTime @default(now())
+  tickets   Ticket[]
+}
+
+// Lab 2 §5, Issue #14: a temporary testing identity, not real authentication
+// (spec BR-03). Deliberately not named `User` — see specification.md D-02.
+model DevRequester {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  tickets   Ticket[]
+}
+
+// Lab 2 §5.3, Issue #15: the specific service/app/device/platform a Ticket
+// is about (e.g. Email, VPN, Corporate Laptop) — distinct from Category.
+model RelatedSystem {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  tickets   Ticket[]
+}
+
+// Lab 2 §5/§7, Issue #16. BR-06/BR-07: every query that returns a Ticket
+// must filter by requesterId (ownership) — see server/src/app.ts.
+model Ticket {
+  id                Int           @id @default(autoincrement())
+  ticketNumber      String        @unique
+  requesterId       Int
+  requester         DevRequester  @relation(fields: [requesterId], references: [id])
+  categoryId        Int
+  category          Category      @relation(fields: [categoryId], references: [id])
+  relatedSystemId   Int
+  relatedSystem     RelatedSystem @relation(fields: [relatedSystemId], references: [id])
+  summary           String
+  description       String
+  requestedPriority String
+  currentStatus     String        @default("NEW")
+  createdAt         DateTime      @default(now())
+  attachments       Attachment[]
+
+  @@index([requesterId])
+}
+
+// Lab 2 §4.5/§7, Issue #18. BR-14: removal is soft only — never
+// `prisma.attachment.delete()`. BR-15: `isRemoved` rows keep their metadata
+// visible but must 404 on download.
+model Attachment {
+  id            Int       @id @default(autoincrement())
+  ticketId      Int
+  ticket        Ticket    @relation(fields: [ticketId], references: [id])
+  filename      String
+  storagePath   String
+  mimeType      String
+  sizeBytes     Int
+  isRemoved     Boolean   @default(false)
+  removedAt     DateTime?
+  removalReason String?
+  createdAt     DateTime  @default(now())
+
+  @@index([ticketId])
 }

@@ -1,80 +1,115 @@
 import { useState } from 'react'
+import { Routes, Route, Link } from 'react-router-dom'
+import { RequesterProvider, useRequester } from './requester/RequesterContext'
+import RequesterSelect from './requester/RequesterSelect'
+import RequireRequester from './requester/RequireRequester'
+import HomePage from './HomePage'
+import CreateTicket from './tickets/CreateTicket'
+import MyTickets from './tickets/MyTickets'
+import RequesterTicketDetail from './tickets/RequesterTicketDetail'
 
-type Category = { id: number; name: string }
-
-function App() {
-  const [loading, setLoading] = useState(false)
-  const [online, setOnline] = useState<boolean | null>(null)
-  const [categories, setCategories] = useState<Category[]>([])
-  const [error, setError] = useState<string | null>(null)
-
-  async function checkSystem() {
-    setLoading(true)
-    setError(null)
-    setOnline(null)
-    setCategories([])
-    try {
-      const health = await fetch('/api/health')
-      if (!health.ok) throw new Error(`health HTTP ${health.status}`)
-      const healthData = await health.json()
-
-      const list = await fetch('/api/categories')
-      if (!list.ok) throw new Error(`categories HTTP ${list.status}`)
-      const listData: Category[] = await list.json()
-
-      setOnline(healthData.status === 'ok')
-      setCategories(listData)
-    } catch {
-      setOnline(false)
-      setError('Unable to connect to TokTickIT API')
-    } finally {
-      setLoading(false)
-    }
-  }
+// Lab 2 §8: application shell — shows the current Requester and a Change
+// Requester action once one is selected (FR-02).
+function AppShell() {
+  const { requester, changeRequester } = useRequester()
+  // Zen Green §6: mobile collapses to a hamburger menu below 768px. Plain
+  // CSS breakpoint utility classes (d-none/d-md-flex etc.) drive the
+  // collapse — no Bootstrap JS bundle needed for this.
+  const [navOpen, setNavOpen] = useState(false)
 
   return (
-    <main className="container py-5">
-      <h1 className="display-5 fw-bold text-success mb-4">TokTickIT IT Service Desk</h1>
+    <>
+      <nav className="navbar navbar-expand-md bg-white border-bottom px-3">
+        <span className="navbar-brand fw-bold text-success mb-0">TokTickIT</span>
 
-      <button
-        type="button"
-        className="btn btn-success"
-        onClick={checkSystem}
-        disabled={loading}
-      >
-        {loading ? 'Checking…' : 'Check System'}
-      </button>
+        {requester && (
+          <button
+            type="button"
+            className="navbar-toggler d-md-none"
+            aria-label="Toggle navigation"
+            aria-expanded={navOpen}
+            onClick={() => setNavOpen((v) => !v)}
+          >
+            <span className="navbar-toggler-icon" />
+          </button>
+        )}
 
-      {loading && (
-        <p className="mt-3 text-secondary" role="status">
-          ⏳ loading…
-        </p>
-      )}
+        {requester && (
+          <div
+            className={`w-100 flex-column flex-md-row align-items-md-center ${navOpen ? 'd-flex' : 'd-none d-md-flex'}`}
+          >
+            <Link
+              to="/my-tickets"
+              className="nav-link ms-md-3"
+              onClick={() => setNavOpen(false)}
+            >
+              My Tickets
+            </Link>
+            <Link
+              to="/create-ticket"
+              className="nav-link ms-md-3"
+              onClick={() => setNavOpen(false)}
+            >
+              Create Ticket
+            </Link>
+            <div className="ms-md-auto d-flex align-items-center gap-2 mt-2 mt-md-0">
+              <span className="text-secondary">{requester.name}</span>
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-secondary"
+                onClick={changeRequester}
+              >
+                Change Requester
+              </button>
+            </div>
+          </div>
+        )}
+      </nav>
 
-      {!loading && online !== null && (
-        <div className="mt-3">
-          <p className="mb-1">
-            System Status:{' '}
-            <span className={online ? 'text-success fw-semibold' : 'text-danger fw-semibold'}>
-              {online ? 'Online' : 'Offline'}
-            </span>
-          </p>
-          {error && <p className="text-danger mb-0">{error}</p>}
-          {online && categories.length > 0 && (
-            <>
-              <h2 className="h5 mt-4">Supported Request Categories</h2>
-              <ul className="list-group">
-                {categories.map((c) => (
-                  <li key={c.id} className="list-group-item">
-                    {c.name}
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </div>
-      )}
-    </main>
+      <Routes>
+        <Route path="/select-requester" element={<RequesterSelect />} />
+        <Route
+          path="/"
+          element={
+            <RequireRequester>
+              <HomePage />
+            </RequireRequester>
+          }
+        />
+        <Route
+          path="/create-ticket"
+          element={
+            <RequireRequester>
+              <CreateTicket />
+            </RequireRequester>
+          }
+        />
+        <Route
+          path="/my-tickets"
+          element={
+            <RequireRequester>
+              <MyTickets />
+            </RequireRequester>
+          }
+        />
+        <Route
+          path="/tickets/:id"
+          element={
+            <RequireRequester>
+              <RequesterTicketDetail />
+            </RequireRequester>
+          }
+        />
+      </Routes>
+    </>
+  )
+}
+
+function App() {
+  return (
+    <RequesterProvider>
+      <AppShell />
+    </RequesterProvider>
   )
 }
 

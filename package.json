@@ -1,0 +1,27 @@
+{
+  "name": "toktickit",
+  "version": "1.0.0",
+  "description": "TokTickIT (ตอกติ๊กกิต) is an IT service desk / issue-tracking web application built incrementally across CPE334 Labs 1–4. This repository holds the individual-sprint work: a full-stack vertical slice proving the technology stack works end to end.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/UsernameJillzaza/toktickit.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/UsernameJillzaza/toktickit/issues"
+  },
+  "homepage": "https://github.com/UsernameJillzaza/toktickit#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.63.0"
+  }
+}
