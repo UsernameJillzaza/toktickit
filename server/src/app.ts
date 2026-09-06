@@ -52,4 +52,18 @@ app.get('/api/requesters', async (_req, res) => {
   }
 })
 
+// GET /api/related-systems — reference data for Ticket creation (Lab 2 §5.3).
+app.get('/api/related-systems', async (_req, res) => {
+  try {
+    const items = await prisma.relatedSystem.findMany({
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true },
+    })
+    res.status(200).json(items)
+  } catch (err) {
+    console.error(err)
+    res.status(503).json({ error: 'Database unavailable' })
+  }
+})
+
 export default app
