@@ -5,15 +5,12 @@ import { test, expect } from '@playwright/test'
 // and Ticket Detail, each at desktop/tablet/mobile — into
 // artifacts/lab-02/screenshots/.
 //
-// NOTE for whoever runs this: it needs `server` (port 3000, seeded via
-// `npx prisma db seed`) and `client` (port 5173) already running in two
-// other terminals. This file could not be executed in the sandboxed
-// environment this Issue was implemented in — the Playwright browser
-// binary download timed out against a network restriction that also
-// blocked a mirror host, confirmed not a transient blip by retrying
-// several times. It's included so it can run wherever that isn't blocked
-// (e.g. the student's own machine) — see Lab2_Guidance / the PR
-// description for what was verified manually in its place.
+// Everything runs in ONE test (not one per screenshot) deliberately: each
+// Playwright `test()` gets a fresh browser context by default, which would
+// drop the selected-Requester `localStorage` value between tests. Keeping
+// it all in one continuous test avoids needing `storageState` plumbing —
+// found this the hard way when the first attempt split it into multiple
+// tests and My Tickets/Ticket Detail failed with no requester selected.
 
 const VIEWPORTS = [
   { name: 'desktop', width: 1280, height: 800 },
@@ -21,11 +18,8 @@ const VIEWPORTS = [
   { name: 'mobile', width: 375, height: 812 },
 ] as const
 
-test.describe.configure({ mode: 'serial' })
-
-let ticketDetailPath = ''
-
-test('select a requester and create a ticket to have something to screenshot', async ({ page }) => {
+test('capture Create Ticket, My Tickets, and Ticket Detail at all 3 breakpoints', async ({ page }) => {
+  // Set up: select a requester, create one ticket to have real data to show.
   await page.goto('/select-requester')
   await page.getByLabel(/development requester/i).selectOption({ index: 1 })
   await page.getByRole('button', { name: /continue/i }).click()
@@ -35,44 +29,42 @@ test('select a requester and create a ticket to have something to screenshot', a
   await page.getByLabel(/related system/i).selectOption({ index: 1 })
   await page.getByLabel(/requested priority/i).selectOption('MEDIUM')
   await page.getByLabel(/^summary/i).fill('Screenshot fixture ticket for the responsive pass')
-  await page.getByLabel(/^description/i).fill('Created only so the UI-polish screenshots have real data to show.')
+  await page
+    .getByLabel(/^description/i)
+    .fill('Created only so the UI-polish screenshots have real data to show.')
   await page.getByRole('button', { name: /submit/i }).click()
-
   await expect(page.getByText(/ticket created/i)).toBeVisible()
-})
 
-for (const viewport of VIEWPORTS) {
-  test(`Create Ticket screenshot — ${viewport.name}`, async ({ page }) => {
+  let ticketDetailPath = ''
+
+  for (const viewport of VIEWPORTS) {
     await page.setViewportSize(viewport)
+
     await page.goto('/create-ticket')
     await page.screenshot({
       path: `artifacts/lab-02/screenshots/create-ticket/${viewport.name}.png`,
       fullPage: true,
     })
-  })
 
-  test(`My Tickets screenshot — ${viewport.name}`, async ({ page }) => {
-    await page.setViewportSize(viewport)
     await page.goto('/my-tickets')
-    await expect(page.getByText(/screenshot fixture ticket/i).first()).toBeVisible()
-
-    if (viewport.name === 'desktop') {
-      const link = page.locator('table a', { hasText: /^TKT-/ }).first()
+    // The desktop table and mobile card render the same ticket text
+    // simultaneously in the DOM (only one is display:none by breakpoint) —
+    // `.first()` alone can resolve to the hidden one depending on viewport,
+    // so filter to the actually-visible match explicitly.
+    await expect(page.getByText(/screenshot fixture ticket/i).locator('visible=true').first()).toBeVisible()
+    if (!ticketDetailPath) {
+      const link = page.locator('a', { hasText: /^TKT-/ }).locator('visible=true').first()
       ticketDetailPath = new URL(await link.getAttribute('href')!, 'http://localhost').pathname
     }
-
     await page.screenshot({
       path: `artifacts/lab-02/screenshots/my-tickets/${viewport.name}.png`,
       fullPage: true,
     })
-  })
 
-  test(`Ticket Detail screenshot — ${viewport.name}`, async ({ page }) => {
-    await page.setViewportSize(viewport)
-    await page.goto(ticketDetailPath || '/my-tickets')
+    await page.goto(ticketDetailPath)
     await page.screenshot({
       path: `artifacts/lab-02/screenshots/ticket-detail/${viewport.name}.png`,
       fullPage: true,
     })
-  })
-}
+  }
+})
