@@ -75,15 +75,22 @@ describe('GET /api/tickets — pageSize cap', () => {
 // tie-breaker for rows created in the same instant.
 describe('GET /api/tickets — stable sort', () => {
   it('orders results consistently across repeated identical requests', async () => {
+    // Scoped to this test's own fixtures via `search` — other test files
+    // (and even other `it` blocks here) create tickets for the same
+    // requester concurrently against the shared dev DB, so a query with no
+    // scoping would flake whenever a fixture landed between the two calls.
+    const tag = `stablesort-${Math.random().toString(36).slice(2, 10)}`
     for (let i = 0; i < 3; i++) {
-      await createTicket(requesterA.id, `Stable sort fixture ${i}`)
+      await createTicket(requesterA.id, `Stable sort fixture ${i} ${tag}`)
     }
 
-    const first = await request(app).get('/api/tickets').query({ requesterId: requesterA.id, pageSize: 50 })
-    const second = await request(app).get('/api/tickets').query({ requesterId: requesterA.id, pageSize: 50 })
+    const query = { requesterId: requesterA.id, pageSize: 50, search: tag }
+    const first = await request(app).get('/api/tickets').query(query)
+    const second = await request(app).get('/api/tickets').query(query)
 
     const idsFirst = first.body.items.map((t: { id: number }) => t.id)
     const idsSecond = second.body.items.map((t: { id: number }) => t.id)
+    expect(idsFirst).toHaveLength(3)
     expect(idsFirst).toEqual(idsSecond)
   })
 })

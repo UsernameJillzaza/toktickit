@@ -50,17 +50,23 @@ describe('POST /api/tickets — valid input', () => {
 describe('POST /api/tickets — missing summary', () => {
   it('returns 400 and does not create a ticket', async () => {
     const payload = await validPayload()
-    const before = await prisma.ticket.count()
+    // Check for this test's own rejected summary specifically, rather than a
+    // global prisma.ticket.count() before/after — other test files insert
+    // fixtures concurrently against the same shared dev DB, so a global
+    // count is flaky under that parallelism (this test used to compare
+    // global counts and failed intermittently once my-tickets.api.test.ts
+    // started creating fixtures at the same time).
+    const rejectedSummary = 'short'
 
     const res = await request(app)
       .post('/api/tickets')
-      .send({ ...payload, summary: 'short' })
+      .send({ ...payload, summary: rejectedSummary })
 
     expect(res.status).toBe(400)
     expect(res.body.field).toBe('summary')
 
-    const after = await prisma.ticket.count()
-    expect(after).toBe(before)
+    const created = await prisma.ticket.findFirst({ where: { summary: rejectedSummary } })
+    expect(created).toBeNull()
   })
 })
 
