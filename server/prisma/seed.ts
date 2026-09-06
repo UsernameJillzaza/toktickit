@@ -20,6 +20,17 @@ const DEV_REQUESTERS: { name: string; email: string; isActive: boolean }[] = [
   { name: 'David Wilson (inactive)', email: 'david.wilson@toktickit.test', isActive: false },
 ]
 
+// Lab 2 §5.3: at least six realistic Related Systems.
+const RELATED_SYSTEMS = [
+  'Email',
+  'Campus Wi-Fi',
+  'VPN',
+  'LEB2 App',
+  'Grade Submission App',
+  'Printer',
+  'Corporate Laptop',
+]
+
 async function main() {
   for (const name of CATEGORIES) {
     // upsert (not create): reruns are idempotent — an existing row is left
@@ -40,6 +51,15 @@ async function main() {
     })
   }
   console.log(`Seeded ${DEV_REQUESTERS.length} development requesters`)
+
+  for (const name of RELATED_SYSTEMS) {
+    await prisma.relatedSystem.upsert({
+      where: { name },
+      update: {},
+      create: { name },
+    })
+  }
+  console.log(`Seeded ${RELATED_SYSTEMS.length} related systems`)
 }
 
 main()
