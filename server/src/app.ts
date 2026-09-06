@@ -36,4 +36,20 @@ app.get('/api/categories', async (_req, res) => {
   }
 })
 
+// GET /api/requesters — active Development Requesters only (Lab 2 §5.3, BR-05).
+// This selector is a testing mechanism, not authentication (BR-03).
+app.get('/api/requesters', async (_req, res) => {
+  try {
+    const requesters = await prisma.devRequester.findMany({
+      where: { isActive: true },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true, email: true },
+    })
+    res.status(200).json(requesters)
+  } catch (err) {
+    console.error(err)
+    res.status(503).json({ error: 'Database unavailable' })
+  }
+})
+
 export default app

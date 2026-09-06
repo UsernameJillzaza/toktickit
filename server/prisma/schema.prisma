@@ -18,3 +18,13 @@ model Category {
   name      String   @unique
   createdAt DateTime @default(now())
 }
+
+// Lab 2 §5, Issue #14: a temporary testing identity, not real authentication
+// (spec BR-03). Deliberately not named `User` — see specification.md D-02.
+model DevRequester {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}

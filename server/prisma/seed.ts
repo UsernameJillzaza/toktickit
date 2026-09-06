@@ -10,6 +10,16 @@ const prisma = new PrismaClient({ adapter })
 // run more than once without creating duplicates.
 const CATEGORIES = ['Account and Access', 'Hardware', 'Software', 'Network']
 
+// Lab 2 §5.3: at least four active Development Requesters and at least one
+// inactive one (the inactive row must never appear in the selector — BR-05).
+const DEV_REQUESTERS: { name: string; email: string; isActive: boolean }[] = [
+  { name: 'Jennifer Anderson', email: 'jennifer.anderson@toktickit.test', isActive: true },
+  { name: 'Michael Brown', email: 'michael.brown@toktickit.test', isActive: true },
+  { name: 'Somchai Suksawat', email: 'somchai.suksawat@toktickit.test', isActive: true },
+  { name: 'Nattaya Chaiyaporn', email: 'nattaya.chaiyaporn@toktickit.test', isActive: true },
+  { name: 'David Wilson (inactive)', email: 'david.wilson@toktickit.test', isActive: false },
+]
+
 async function main() {
   for (const name of CATEGORIES) {
     // upsert (not create): reruns are idempotent — an existing row is left
@@ -21,6 +31,15 @@ async function main() {
     })
   }
   console.log(`Seeded ${CATEGORIES.length} categories`)
+
+  for (const requester of DEV_REQUESTERS) {
+    await prisma.devRequester.upsert({
+      where: { email: requester.email },
+      update: {},
+      create: requester,
+    })
+  }
+  console.log(`Seeded ${DEV_REQUESTERS.length} development requesters`)
 }
 
 main()
