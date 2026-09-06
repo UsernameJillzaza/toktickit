@@ -28,3 +28,11 @@ model DevRequester {
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
 }
+
+// Lab 2 §5.3, Issue #15: the specific service/app/device/platform a Ticket
+// is about (e.g. Email, VPN, Corporate Laptop) — distinct from Category.
+model RelatedSystem {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+}
