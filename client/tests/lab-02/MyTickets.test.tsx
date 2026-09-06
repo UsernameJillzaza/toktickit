@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
 import MyTickets from '../../src/tickets/MyTickets'
 import { RequesterProvider } from '../../src/requester/RequesterContext'
 
@@ -30,9 +31,11 @@ function mockFetch(respond: (url: string) => { items: unknown[]; total: number }
 
 function renderMyTickets() {
   return render(
-    <RequesterProvider>
-      <MyTickets />
-    </RequesterProvider>,
+    <MemoryRouter>
+      <RequesterProvider>
+        <MyTickets />
+      </RequesterProvider>
+    </MemoryRouter>,
   )
 }
 
