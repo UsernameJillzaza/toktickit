@@ -71,7 +71,11 @@ describe('UI-09 no-results state', () => {
     })
     renderMyTickets()
 
-    await screen.findByText('TKT-2026-000001')
+    // Both the desktop table and mobile card render the same ticket data —
+    // jsdom doesn't apply the Bootstrap CSS that hides one of them by
+    // breakpoint, so real duplicates are expected here; findAllBy* is the
+    // correct query, not a bug in the component.
+    await screen.findAllByText('TKT-2026-000001')
     await userEvent.type(screen.getByLabelText(/search tickets/i), 'nothing matches this')
     await userEvent.click(screen.getByRole('button', { name: /^search$/i }))
 
@@ -87,7 +91,11 @@ describe('UI-10 pagination', () => {
     mockFetch(() => ({ items: ONE_TICKET, total: 25 })) // pageSize 10 -> 3 pages
     renderMyTickets()
 
-    await screen.findByText('TKT-2026-000001')
+    // Both the desktop table and mobile card render the same ticket data —
+    // jsdom doesn't apply the Bootstrap CSS that hides one of them by
+    // breakpoint, so real duplicates are expected here; findAllBy* is the
+    // correct query, not a bug in the component.
+    await screen.findAllByText('TKT-2026-000001')
     expect(screen.getByRole('button', { name: /previous/i })).toBeDisabled()
     expect(screen.getByRole('button', { name: /^next$/i })).toBeEnabled()
     expect(screen.getByText(/page 1 of 3/i)).toBeInTheDocument()

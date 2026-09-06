@@ -149,7 +149,9 @@ export default function MyTickets() {
 
       {listState === 'ready' && total > 0 && (
         <>
-          <div className="table-responsive">
+          {/* Desktop/tablet: table. Zen Green §7 commits mobile to cards
+              instead of a horizontally-scrolling table (no clipped columns). */}
+          <div className="table-responsive d-none d-md-block">
             <table className="table align-middle">
               <thead>
                 <tr>
@@ -178,6 +180,27 @@ export default function MyTickets() {
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile: one card per ticket, no horizontal scrolling needed. */}
+          <div className="d-md-none">
+            {items.map((t) => (
+              <div key={t.id} className="card mb-2">
+                <div className="card-body">
+                  <Link to={`/tickets/${t.id}`} className="fw-semibold d-block mb-1">
+                    {t.ticketNumber}
+                  </Link>
+                  <p className="mb-2">{t.summary}</p>
+                  <div className="d-flex justify-content-between align-items-center">
+                    <span className="text-secondary small">{t.category?.name ?? '—'}</span>
+                    <span className="d-flex gap-1">
+                      <span className="badge bg-secondary">{t.requestedPriority}</span>
+                      <span className="badge bg-success">{t.currentStatus}</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
 
           <div className="d-flex justify-content-between align-items-center">
