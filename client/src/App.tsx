@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Routes, Route, Link } from 'react-router-dom'
 import { RequesterProvider, useRequester } from './requester/RequesterContext'
 import RequesterSelect from './requester/RequesterSelect'
@@ -11,20 +12,47 @@ import RequesterTicketDetail from './tickets/RequesterTicketDetail'
 // Requester action once one is selected (FR-02).
 function AppShell() {
   const { requester, changeRequester } = useRequester()
+  // Zen Green §6: mobile collapses to a hamburger menu below 768px. Plain
+  // CSS breakpoint utility classes (d-none/d-md-flex etc.) drive the
+  // collapse — no Bootstrap JS bundle needed for this.
+  const [navOpen, setNavOpen] = useState(false)
 
   return (
     <>
-      <nav className="navbar navbar-expand bg-white border-bottom px-3">
+      <nav className="navbar navbar-expand-md bg-white border-bottom px-3">
         <span className="navbar-brand fw-bold text-success mb-0">TokTickIT</span>
+
         {requester && (
-          <>
-            <Link to="/my-tickets" className="ms-3 text-decoration-none">
+          <button
+            type="button"
+            className="navbar-toggler d-md-none"
+            aria-label="Toggle navigation"
+            aria-expanded={navOpen}
+            onClick={() => setNavOpen((v) => !v)}
+          >
+            <span className="navbar-toggler-icon" />
+          </button>
+        )}
+
+        {requester && (
+          <div
+            className={`w-100 flex-column flex-md-row align-items-md-center ${navOpen ? 'd-flex' : 'd-none d-md-flex'}`}
+          >
+            <Link
+              to="/my-tickets"
+              className="nav-link ms-md-3"
+              onClick={() => setNavOpen(false)}
+            >
               My Tickets
             </Link>
-            <Link to="/create-ticket" className="ms-3 text-decoration-none">
+            <Link
+              to="/create-ticket"
+              className="nav-link ms-md-3"
+              onClick={() => setNavOpen(false)}
+            >
               Create Ticket
             </Link>
-            <div className="ms-auto d-flex align-items-center gap-2">
+            <div className="ms-md-auto d-flex align-items-center gap-2 mt-2 mt-md-0">
               <span className="text-secondary">{requester.name}</span>
               <button
                 type="button"
@@ -34,7 +62,7 @@ function AppShell() {
                 Change Requester
               </button>
             </div>
-          </>
+          </div>
         )}
       </nav>
 

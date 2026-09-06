@@ -116,13 +116,31 @@ Required field: asterisk สีแดงต่อท้าย label — **asteri
 
 ## 12. Visual Inspection Checklist (ใช้ตอน Phase 8)
 
-- [ ] สี token ตรงกับตารางข้อ 1 เป๊ะ ไม่มีสีหลุด
-- [ ] editable vs read-only field แยกออกจากกันชัดด้วยตา
-- [ ] validation message อยู่ใต้ field ที่เกี่ยวข้องเสมอ ไม่ใช่แค่ banner บนสุด
-- [ ] button hierarchy ใช้ถูกระดับ (ไม่มี destructive action ใช้สี primary)
-- [ ] ไม่มี label ถูกตัด/ซ้อนทับ/horizontal scroll ที่ breakpoint ไหนเลย
-- [ ] badge สีสม่ำเสมอทุกหน้าจอ (My Tickets list, Ticket Detail)
-- [ ] empty state ≠ no-results state ในทุกจุดที่ใช้ทั้งคู่
+ทำ Phase 8 จริงแล้ว (2026-09-06) — เช็คด้วยตาในเบราว์เซอร์จริงที่ desktop/tablet/mobile ทั้ง 3
+หน้าจอ (Create Ticket, My Tickets, Ticket Detail):
+
+- [x] สี token ตรงกับตารางข้อ 1 เป๊ะ ไม่มีสีหลุด — **เจอจริงว่าไม่ตรง** ตอนแรก (โค้ดใช้สี Bootstrap
+      เดิม `#198754` ไม่ใช่ `#006B3C`, link เป็นสีฟ้า default ไม่ใช่ secondary green) แก้แล้วใน
+      `client/src/index.css` โดย override CSS variable ของ Bootstrap ตรง ๆ
+- [x] editable vs read-only field แยกออกจากกันชัดด้วยตา — Ticket Number (read-only) พื้นเทาอ่อน
+      ต่างจาก field อื่นชัดเจน
+- [x] validation message อยู่ใต้ field ที่เกี่ยวข้องเสมอ ไม่ใช่แค่ banner บนสุด — เช็คแล้วบน Create
+      Ticket ตอน submit ว่างครบ 5 field ข้อความ error อยู่ใต้แต่ละ field จริง
+- [x] button hierarchy ใช้ถูกระดับ (ไม่มี destructive action ใช้สี primary) — Remove attachment ใช้
+      `btn-outline-danger`, Submit/Continue ใช้ primary green
+- [x] ไม่มี label ถูกตัด/ซ้อนทับ/horizontal scroll ที่ breakpoint ไหนเลย — **เจอบั๊กจริง 2 จุด** ตอน
+      เช็ค mobile (375px): (1) nav bar ทับกันจนอ่านไม่ออก ไม่มี hamburger menu ทั้งที่ spec ข้อ 6
+      บอกไว้ว่าต้องมี — แก้แล้วด้วย responsive collapse ใน `App.tsx`; (2) My Tickets ตารางล้นขวา
+      ต้อง scroll แนวนอนถึงจะเห็นคอลัมน์ Status — แก้แล้วด้วยการ์ดสำหรับจอ <768px ใน `MyTickets.tsx`
+- [x] badge สีสม่ำเสมอทุกหน้าจอ (My Tickets list, Ticket Detail) — Priority (`bg-secondary`) และ
+      Status (`bg-success`) ใช้ class เดียวกันทั้งสองหน้าจอ
+- [x] empty state ≠ no-results state ในทุกจุดที่ใช้ทั้งคู่ — ข้อความและปุ่ม Clear filters ต่างกัน
+      จริง ทดสอบอัตโนมัติ (UI-08/UI-09) ยืนยันด้วยว่าอีกข้อความไม่โผล่มาปนกัน
+
+**หมายเหตุ:** ยังไม่มี Playwright screenshot จริง 9 ภาพใน `artifacts/lab-02/screenshots/` —
+เครื่องมือ E2E ติดตั้ง browser binary ไม่ได้ใน sandbox ของ session ที่ทำ (เน็ตบล็อกโดเมนดาวน์โหลด)
+ต้องรัน `npx playwright test` บนเครื่องที่มีเน็ตปกติ ดูรายละเอียดที่
+`artifacts/lab-02/screenshots/README.md`
 
 ## 13. Screenshot Paths (สำหรับ Phase 8 / §12 ของ labsheet)
 
