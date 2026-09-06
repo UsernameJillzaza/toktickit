@@ -4,6 +4,7 @@ import RequesterSelect from './requester/RequesterSelect'
 import RequireRequester from './requester/RequireRequester'
 import HomePage from './HomePage'
 import CreateTicket from './tickets/CreateTicket'
+import MyTickets from './tickets/MyTickets'
 
 // Lab 2 §8: application shell — shows the current Requester and a Change
 // Requester action once one is selected (FR-02).
@@ -16,6 +17,9 @@ function AppShell() {
         <span className="navbar-brand fw-bold text-success mb-0">TokTickIT</span>
         {requester && (
           <>
+            <Link to="/my-tickets" className="ms-3 text-decoration-none">
+              My Tickets
+            </Link>
             <Link to="/create-ticket" className="ms-3 text-decoration-none">
               Create Ticket
             </Link>
@@ -48,6 +52,14 @@ function AppShell() {
           element={
             <RequireRequester>
               <CreateTicket />
+            </RequireRequester>
+          }
+        />
+        <Route
+          path="/my-tickets"
+          element={
+            <RequireRequester>
+              <MyTickets />
             </RequireRequester>
           }
         />
