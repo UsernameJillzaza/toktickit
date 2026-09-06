@@ -56,6 +56,26 @@ model Ticket {
   requestedPriority String
   currentStatus     String        @default("NEW")
   createdAt         DateTime      @default(now())
+  attachments       Attachment[]
 
   @@index([requesterId])
+}
+
+// Lab 2 §4.5/§7, Issue #18. BR-14: removal is soft only — never
+// `prisma.attachment.delete()`. BR-15: `isRemoved` rows keep their metadata
+// visible but must 404 on download.
+model Attachment {
+  id            Int       @id @default(autoincrement())
+  ticketId      Int
+  ticket        Ticket    @relation(fields: [ticketId], references: [id])
+  filename      String
+  storagePath   String
+  mimeType      String
+  sizeBytes     Int
+  isRemoved     Boolean   @default(false)
+  removedAt     DateTime?
+  removalReason String?
+  createdAt     DateTime  @default(now())
+
+  @@index([ticketId])
 }

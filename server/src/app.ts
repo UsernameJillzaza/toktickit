@@ -1,8 +1,17 @@
 import 'dotenv/config'
+import fs from 'node:fs'
+import path from 'node:path'
 import express from 'express'
+import multer from 'multer'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from './generated/prisma/client'
 import { generateTicketNumber } from './ticketNumber'
+import {
+  sanitizeFilename,
+  ALLOWED_ATTACHMENT_MIME_TYPES,
+  MAX_ATTACHMENT_SIZE_BYTES,
+  MAX_ACTIVE_ATTACHMENTS_PER_TICKET,
+} from './attachmentStorage'
 
 // The Express app is defined here and exported WITHOUT calling listen(),
 // so tests (Supertest) can import it directly. server.ts owns listen().
@@ -234,6 +243,231 @@ app.get('/api/tickets', async (req, res) => {
   } catch (err) {
     console.error(err)
     res.status(500).json({ error: 'Unable to list tickets' })
+  }
+})
+
+// GET /api/tickets/:id — Requester Ticket Detail (Lab 2 §8.5, Issue #18).
+// BR-07: not found and wrong-owner return the same 404, so a client can't
+// tell the two cases apart.
+app.get('/api/tickets/:id', async (req, res) => {
+  const id = Number(req.params.id)
+  const requesterId = Number(req.query.requesterId)
+  if (!Number.isInteger(requesterId)) {
+    return res.status(400).json({ error: 'requesterId is required' })
+  }
+
+  try {
+    const ticket = await prisma.ticket.findUnique({
+      where: { id },
+      include: {
+        category: { select: { name: true } },
+        relatedSystem: { select: { name: true } },
+        attachments: {
+          select: {
+            id: true,
+            filename: true,
+            mimeType: true,
+            sizeBytes: true,
+            isRemoved: true,
+            removedAt: true,
+            createdAt: true,
+          },
+        },
+      },
+    })
+    if (!ticket || ticket.requesterId !== requesterId) {
+      return res.status(404).json({ error: 'Ticket not found' })
+    }
+    res.status(200).json(ticket)
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Unable to load ticket' })
+  }
+})
+
+const UPLOAD_ROOT = path.join(process.cwd(), 'uploads')
+
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (req, _file, cb) => {
+      const dir = path.join(UPLOAD_ROOT, String(req.params.id))
+      fs.mkdirSync(dir, { recursive: true })
+      cb(null, dir)
+    },
+    filename: (_req, file, cb) => cb(null, sanitizeFilename(file.originalname)),
+  }),
+  limits: { fileSize: MAX_ATTACHMENT_SIZE_BYTES },
+  fileFilter: (_req, file, cb) => {
+    if (!ALLOWED_ATTACHMENT_MIME_TYPES.includes(file.mimetype)) {
+      cb(new Error('INVALID_FILE_TYPE'))
+      return
+    }
+    cb(null, true)
+  },
+})
+
+function safeUnlink(filePath: string) {
+  try {
+    fs.unlinkSync(filePath)
+  } catch {
+    // Best-effort cleanup only — nothing left referencing this path in the
+    // DB either way, so a stray file is harmless.
+  }
+}
+
+// POST /api/tickets/:id/attachments — upload (Lab 2 §4.5, Issue #18).
+// BR-12 (type/size/count) is enforced twice: multer's fileFilter/limits for
+// type and size, and an explicit count check here for the 5-active cap —
+// no single multer option covers "how many rows already exist in the DB".
+app.post('/api/tickets/:id/attachments', (req, res) => {
+  upload.single('file')(req, res, async (uploadErr) => {
+    if (uploadErr) {
+      const code = (uploadErr as { code?: string }).code
+      const message =
+        code === 'LIMIT_FILE_SIZE'
+          ? 'File exceeds the 5 MB limit'
+          : 'Unsupported file type — only JPG, PNG, WEBP, and PDF are allowed'
+      return res.status(400).json({ error: message })
+    }
+    if (!req.file) {
+      return res.status(400).json({ error: 'file is required' })
+    }
+
+    const ticketId = Number(req.params.id)
+    const requesterId = Number(req.query.requesterId ?? req.body.requesterId)
+    if (!Number.isInteger(requesterId)) {
+      safeUnlink(req.file.path)
+      return res.status(400).json({ error: 'requesterId is required' })
+    }
+
+    try {
+      const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } })
+      if (!ticket || ticket.requesterId !== requesterId) {
+        safeUnlink(req.file.path)
+        return res.status(404).json({ error: 'Ticket not found' })
+      }
+
+      const activeCount = await prisma.attachment.count({ where: { ticketId, isRemoved: false } })
+      if (activeCount >= MAX_ACTIVE_ATTACHMENTS_PER_TICKET) {
+        safeUnlink(req.file.path)
+        return res
+          .status(400)
+          .json({ error: `A ticket may have at most ${MAX_ACTIVE_ATTACHMENTS_PER_TICKET} active attachments` })
+      }
+
+      const attachment = await prisma.attachment.create({
+        data: {
+          ticketId,
+          filename: req.file.originalname,
+          storagePath: req.file.path,
+          mimeType: req.file.mimetype,
+          sizeBytes: req.file.size,
+        },
+      })
+
+      res.status(201).json({
+        id: attachment.id,
+        ticketId: attachment.ticketId,
+        filename: attachment.filename,
+        mimeType: attachment.mimeType,
+        sizeBytes: attachment.sizeBytes,
+        isRemoved: attachment.isRemoved,
+        createdAt: attachment.createdAt,
+      })
+    } catch (err) {
+      console.error(err)
+      safeUnlink(req.file.path)
+      res.status(500).json({ error: 'Unable to upload attachment' })
+    }
+  })
+})
+
+// GET /api/attachments/:id — metadata only, visible even when isRemoved
+// (BR-15: removed attachments still show metadata, just can't be downloaded).
+app.get('/api/attachments/:id', async (req, res) => {
+  const id = Number(req.params.id)
+  const requesterId = Number(req.query.requesterId)
+  if (!Number.isInteger(requesterId)) {
+    return res.status(400).json({ error: 'requesterId is required' })
+  }
+
+  try {
+    const attachment = await prisma.attachment.findUnique({ where: { id }, include: { ticket: true } })
+    if (!attachment || attachment.ticket.requesterId !== requesterId) {
+      return res.status(404).json({ error: 'Attachment not found' })
+    }
+    res.status(200).json({
+      id: attachment.id,
+      ticketId: attachment.ticketId,
+      filename: attachment.filename,
+      mimeType: attachment.mimeType,
+      sizeBytes: attachment.sizeBytes,
+      isRemoved: attachment.isRemoved,
+      removedAt: attachment.removedAt,
+      createdAt: attachment.createdAt,
+    })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Unable to load attachment' })
+  }
+})
+
+// GET /api/attachments/:id/download — BR-15: a soft-removed attachment 404s
+// here even though its metadata is still visible via the endpoint above.
+app.get('/api/attachments/:id/download', async (req, res) => {
+  const id = Number(req.params.id)
+  const requesterId = Number(req.query.requesterId)
+  if (!Number.isInteger(requesterId)) {
+    return res.status(400).json({ error: 'requesterId is required' })
+  }
+
+  try {
+    const attachment = await prisma.attachment.findUnique({ where: { id }, include: { ticket: true } })
+    if (!attachment || attachment.ticket.requesterId !== requesterId || attachment.isRemoved) {
+      return res.status(404).json({ error: 'Attachment not found' })
+    }
+    res.download(attachment.storagePath, attachment.filename)
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Unable to download attachment' })
+  }
+})
+
+// POST /api/attachments/:id/remove — soft-remove only (BR-14). Idempotent
+// guard: removing an already-removed attachment is a 409, not a silent 200.
+app.post('/api/attachments/:id/remove', async (req, res) => {
+  const id = Number(req.params.id)
+  const { requesterId, reason } = req.body as { requesterId?: unknown; reason?: unknown }
+
+  if (typeof requesterId !== 'number') {
+    return res.status(400).json({ error: 'requesterId is required' })
+  }
+  if (typeof reason !== 'string' || reason.trim().length < 5) {
+    return res.status(400).json({ error: 'reason must be at least 5 characters' })
+  }
+
+  try {
+    const attachment = await prisma.attachment.findUnique({ where: { id }, include: { ticket: true } })
+    if (!attachment || attachment.ticket.requesterId !== requesterId) {
+      return res.status(404).json({ error: 'Attachment not found' })
+    }
+    if (attachment.isRemoved) {
+      return res.status(409).json({ error: 'Attachment already removed' })
+    }
+
+    const updated = await prisma.attachment.update({
+      where: { id },
+      data: { isRemoved: true, removedAt: new Date(), removalReason: reason.trim() },
+    })
+    res.status(200).json({
+      id: updated.id,
+      isRemoved: updated.isRemoved,
+      removedAt: updated.removedAt,
+      removalReason: updated.removalReason,
+    })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Unable to remove attachment' })
   }
 })
 

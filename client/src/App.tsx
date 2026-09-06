@@ -5,6 +5,7 @@ import RequireRequester from './requester/RequireRequester'
 import HomePage from './HomePage'
 import CreateTicket from './tickets/CreateTicket'
 import MyTickets from './tickets/MyTickets'
+import RequesterTicketDetail from './tickets/RequesterTicketDetail'
 
 // Lab 2 §8: application shell — shows the current Requester and a Change
 // Requester action once one is selected (FR-02).
@@ -60,6 +61,14 @@ function AppShell() {
           element={
             <RequireRequester>
               <MyTickets />
+            </RequireRequester>
+          }
+        />
+        <Route
+          path="/tickets/:id"
+          element={
+            <RequireRequester>
+              <RequesterTicketDetail />
             </RequireRequester>
           }
         />

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useRequester } from '../requester/RequesterContext'
 
 type TicketRow = {
@@ -162,7 +163,9 @@ export default function MyTickets() {
               <tbody>
                 {items.map((t) => (
                   <tr key={t.id}>
-                    <td>{t.ticketNumber}</td>
+                    <td>
+                      <Link to={`/tickets/${t.id}`}>{t.ticketNumber}</Link>
+                    </td>
                     <td>{t.summary}</td>
                     <td>{t.category?.name ?? '—'}</td>
                     <td>
