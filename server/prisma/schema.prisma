@@ -17,6 +17,7 @@ model Category {
   id        Int      @id @default(autoincrement())
   name      String   @unique
   createdAt DateTime @default(now())
+  tickets   Ticket[]
 }
 
 // Lab 2 §5, Issue #14: a temporary testing identity, not real authentication
@@ -27,6 +28,7 @@ model DevRequester {
   email     String   @unique
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
+  tickets   Ticket[]
 }
 
 // Lab 2 §5.3, Issue #15: the specific service/app/device/platform a Ticket
@@ -35,4 +37,25 @@ model RelatedSystem {
   id        Int      @id @default(autoincrement())
   name      String   @unique
   createdAt DateTime @default(now())
+  tickets   Ticket[]
+}
+
+// Lab 2 §5/§7, Issue #16. BR-06/BR-07: every query that returns a Ticket
+// must filter by requesterId (ownership) — see server/src/app.ts.
+model Ticket {
+  id                Int           @id @default(autoincrement())
+  ticketNumber      String        @unique
+  requesterId       Int
+  requester         DevRequester  @relation(fields: [requesterId], references: [id])
+  categoryId        Int
+  category          Category      @relation(fields: [categoryId], references: [id])
+  relatedSystemId   Int
+  relatedSystem     RelatedSystem @relation(fields: [relatedSystemId], references: [id])
+  summary           String
+  description       String
+  requestedPriority String
+  currentStatus     String        @default("NEW")
+  createdAt         DateTime      @default(now())
+
+  @@index([requesterId])
 }
