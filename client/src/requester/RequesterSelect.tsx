@@ -30,7 +30,7 @@ export default function RequesterSelect() {
           setState('empty')
         } else {
           setRequesters(data)
-          setSelectedId(String(data[0].id))
+          setSelectedId('') // no requester pre-selected — Continue stays disabled until a real choice is made
           setState('ready')
         }
       } catch {
@@ -89,6 +89,7 @@ export default function RequesterSelect() {
             value={selectedId}
             onChange={(e) => setSelectedId(e.target.value)}
           >
+            <option value="">Select a Development Requester…</option>
             {requesters.map((r) => (
               <option key={r.id} value={r.id}>
                 {r.name}
@@ -96,7 +97,12 @@ export default function RequesterSelect() {
             ))}
           </select>
 
-          <button type="button" className="btn btn-success" onClick={handleContinue}>
+          <button
+            type="button"
+            className="btn btn-success"
+            onClick={handleContinue}
+            disabled={!selectedId}
+          >
             Continue
           </button>
         </div>

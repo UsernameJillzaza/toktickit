@@ -57,6 +57,20 @@ describe('UI-01 selector states', () => {
     expect(screen.getByText('Michael Brown')).toBeInTheDocument()
   })
 
+  // Requested change: Continue must not be usable until a real choice is
+  // made — no requester should be pre-selected on load.
+  it('does not pre-select a requester and keeps Continue disabled until one is chosen', async () => {
+    mockFetch(() => REQUESTERS)
+    renderSelect()
+
+    const continueButton = await screen.findByRole('button', { name: /continue/i })
+    expect(screen.getByRole('combobox')).toHaveValue('')
+    expect(continueButton).toBeDisabled()
+
+    await userEvent.selectOptions(screen.getByRole('combobox'), 'Jennifer Anderson')
+    expect(continueButton).toBeEnabled()
+  })
+
   it('shows an empty state when no active requesters exist', async () => {
     mockFetch(() => [])
     renderSelect()
@@ -87,6 +101,7 @@ describe('UI-02 selection persists across a simulated reload', () => {
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /continue/i })).toBeInTheDocument(),
     )
+    await userEvent.selectOptions(screen.getByRole('combobox'), 'Jennifer Anderson')
     await userEvent.click(screen.getByRole('button', { name: /continue/i }))
 
     const stored = window.localStorage.getItem('toktickit.selectedRequester')
