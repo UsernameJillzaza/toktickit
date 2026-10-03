@@ -119,6 +119,23 @@ describe('UI-14 log out', () => {
   })
 })
 
+// UI-30 (BR-11, BR-13): the session ends while a page is open (expired,
+// logged out elsewhere, or deactivated) — the next API call's 401 returns
+// the user to Login instead of leaving a broken page on screen.
+describe('UI-30 session ends mid-use', () => {
+  it('a 401 from a page request sends the user to the Login screen', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (url === '/api/auth/me') return jsonResponse(200, { user: userOf('REQUESTER') })
+        return jsonResponse(401, { error: 'Authentication required.', code: 'UNAUTHENTICATED' })
+      }),
+    )
+    renderAt('/my-tickets')
+    expect(await screen.findByRole('heading', { name: /sign in to toktickit/i })).toBeInTheDocument()
+  })
+})
+
 // BR-42: the Lab 2 selector's leftover client state is removed.
 describe('BR-42 legacy selector state', () => {
   it('clears toktickit.selectedRequester from localStorage on startup', async () => {

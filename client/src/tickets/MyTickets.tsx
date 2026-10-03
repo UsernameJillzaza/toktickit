@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import { apiFetch } from '../api'
 
 type TicketRow = {
   id: number
@@ -20,8 +21,8 @@ const PAGE_SIZE = 10
 // ticket) is deliberately distinct from no-results (a filter/search matched
 // nothing) — AC-09 vs AC-10.
 export default function MyTickets() {
-  // L3-3: the signed-in user replaces the Lab 2 selector. requesterId is still
-  // sent until L3-4 makes the server read identity from the session instead.
+  // Lab 3: the server reads identity from the session cookie (BR-03); the
+  // user is only needed here to know a requester is signed in.
   const { user: requester } = useAuth()
 
   const [listState, setListState] = useState<ListState>('loading')
@@ -46,14 +47,13 @@ export default function MyTickets() {
       setListState('loading')
       try {
         const params = new URLSearchParams({
-          requesterId: String(requester!.id),
           page: String(page),
           pageSize: String(PAGE_SIZE),
           sort,
         })
         if (search.trim()) params.set('search', search.trim())
 
-        const res = await fetch(`/api/tickets?${params.toString()}`)
+        const res = await apiFetch(`/api/tickets?${params.toString()}`)
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const body = await res.json()
         if (cancelled) return

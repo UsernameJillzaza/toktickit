@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import { apiFetch } from '../api'
 
 type Attachment = {
   id: number
@@ -33,8 +34,8 @@ type LoadState = 'loading' | 'ready' | 'not-found' | 'failure'
 // scope for Lab 2 — see specification.md Section 3 Excluded).
 export default function RequesterTicketDetail() {
   const { id } = useParams<{ id: string }>()
-  // L3-3: the signed-in user replaces the Lab 2 selector. requesterId is still
-  // sent until L3-4 makes the server read identity from the session instead.
+  // Lab 3: the server reads identity from the session cookie (BR-03); the
+  // user is only needed here to know a requester is signed in.
   const { user: requester } = useAuth()
 
   const [state, setState] = useState<LoadState>('loading')
@@ -47,7 +48,7 @@ export default function RequesterTicketDetail() {
     if (!requester) return
     setState('loading')
     try {
-      const res = await fetch(`/api/tickets/${id}?requesterId=${requester.id}`)
+      const res = await apiFetch(`/api/tickets/${id}`)
       if (res.status === 404) {
         setState('not-found')
         return
@@ -75,7 +76,7 @@ export default function RequesterTicketDetail() {
     formData.append('file', file)
 
     try {
-      const res = await fetch(`/api/tickets/${id}/attachments?requesterId=${requester.id}`, {
+      const res = await apiFetch(`/api/tickets/${id}/attachments`, {
         method: 'POST',
         body: formData,
       })
@@ -92,10 +93,10 @@ export default function RequesterTicketDetail() {
   async function confirmRemove(attachmentId: number) {
     if (!requester || removalReason.trim().length < 5) return
     try {
-      const res = await fetch(`/api/attachments/${attachmentId}/remove`, {
+      const res = await apiFetch(`/api/attachments/${attachmentId}/remove`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ requesterId: requester.id, reason: removalReason.trim() }),
+        body: JSON.stringify({ reason: removalReason.trim() }),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       setRemovingId(null)
@@ -190,7 +191,7 @@ export default function RequesterTicketDetail() {
             <span className="d-flex gap-2">
               <a
                 className="btn btn-sm btn-outline-success"
-                href={`/api/attachments/${a.id}/download?requesterId=${requester?.id}`}
+                href={`/api/attachments/${a.id}/download`}
               >
                 Download
               </a>

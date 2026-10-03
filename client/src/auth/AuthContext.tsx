@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
+import { SESSION_ENDED_EVENT } from '../api'
 
 export type Role = 'REQUESTER' | 'IT_STAFF' | 'ADMIN'
 
@@ -92,6 +93,13 @@ export function AuthProvider({ children, initialUser }: AuthProviderProps) {
     setUserState(next)
     setStatus(next ? 'authenticated' : 'anonymous')
   }, [])
+
+  // apiFetch saw a 401: forget the user, and RequireAuth sends them to Login.
+  useEffect(() => {
+    const onSessionEnded = () => setUser(null)
+    window.addEventListener(SESSION_ENDED_EVENT, onSessionEnded)
+    return () => window.removeEventListener(SESSION_ENDED_EVENT, onSessionEnded)
+  }, [setUser])
 
   const login = useCallback(
     async (email: string, password: string): Promise<LoginResult> => {
