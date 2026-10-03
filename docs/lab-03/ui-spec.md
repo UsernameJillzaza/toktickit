@@ -106,9 +106,9 @@ Indicator พิเศษ: "Requester reports resolved" — badge ขอบ prim
 
 เหมือน Lab 2 §10 ทุกข้อ เพิ่มเติม:
 
-- คิวและ User Management สลับตาราง → การ์ดที่ `<992px` ด้วย utility class (ไม่ใช้ตาราง scroll แนวนอน)
+- คิวสลับตาราง → การ์ดที่ `<992px` (ตาราง 7 คอลัมน์แคบเกินที่ tablet); User Management สลับที่ `<768px` ด้วย CSS ตัวเดียว (`.tt-stack-table`) เพราะตาราง 5 คอลัมน์พอดีที่ 820px — RESP-01 ยืนยันว่าไม่มี horizontal overflow ทั้งสองหน้า (แก้ตอน L3-10 ให้ตรงกับของจริง)
 - Staff Ticket Detail สองคอลัมน์เฉพาะ `≥992px`
-- ทุกปุ่มบน mobile สูงอย่างน้อย 44px (`btn` + `py-2`)
+- ทุกปุ่มบน mobile สูงอย่างน้อย 44px — กฎ CSS `@media (max-width: 767.98px)` ให้ `.btn` และ hamburger `min-height: 44px` (RESP-01 วัดความสูงจริงของทุกปุ่มที่มองเห็น)
 
 ## 12. Accessibility
 
@@ -119,23 +119,43 @@ Indicator พิเศษ: "Requester reports resolved" — badge ขอบ prim
 - dialog ยืนยัน: `role="alertdialog"`, `aria-labelledby`, focus ไปที่ปุ่ม Cancel ก่อน (ค่าที่ปลอดภัย)
 - badge และป้าย Internal มีข้อความเสมอ
 
-## 13. Visual Inspection Checklist (ติ๊กตอน L3-9 จากของจริงเท่านั้น)
+## 13. Visual Inspection Checklist (ติ๊กตอน L3-9/L3-10 จากของจริงเท่านั้น)
 
-- [ ] สี token และ badge ตรงตารางข้อ 1–2 ทุกหน้าจอใหม่
-- [ ] เมนูแต่ละ role แสดงเฉพาะปลายทางที่อนุญาต
-- [ ] editable vs read-only แยกชัด (หน้า staff detail, user management)
-- [ ] validation message อยู่ใต้ field ที่เกี่ยวข้อง
-- [ ] Public Comment กับ Internal Note แยกกันทางสายตาชัด ไม่มีทางสับสน
-- [ ] focus มองเห็นได้ทุก control (ทดสอบด้วย Tab)
-- [ ] ไม่มี clipping / overlap / horizontal overflow ที่ desktop / tablet / mobile
-- [ ] dialog ยืนยัน status แสดงถูกต้องและ Cancel ไม่ยิง request
+ตรวจจากหน้าจอจริงที่ 1280 / 820 / 375 px (screenshot ใน `artifacts/lab-03/screenshots/`) และเทสต์อัตโนมัติ — แต่ละข้อระบุหลักฐาน
+
+- [x] สี token และ badge ตรงตารางข้อ 1–2 ทุกหน้าจอใหม่ — STYLE-01 (class `tt-badge-*`), screenshot ใน staff-queue / staff-ticket-detail / user-management
+- [x] เมนูแต่ละ role แสดงเฉพาะปลายทางที่อนุญาต — UI-10, E2E-04, screenshot `authentication/admin-menu.png`
+- [x] editable vs read-only แยกชัด (หน้า staff detail, user management) — UI-20, UI-28, screenshot `staff-ticket-detail/detail-closed-read-only.png`, `user-management/edit-own-account.png`
+- [x] validation message อยู่ใต้ field ที่เกี่ยวข้อง — UI-01, UI-06, UI-27, screenshot `authentication/login-validation.png`, `authentication/change-password-policy-error.png`, `user-management/create-validation.png`
+- [x] Public Comment กับ Internal Note แยกกันทางสายตาชัด ไม่มีทางสับสน — UI-21, E2E-05, screenshot `staff-ticket-detail/staff-detail-*.png`
+- [x] focus มองเห็นได้ทุก control (ทดสอบด้วย Tab) — RESP-01 "keyboard focus" (Tab ผ่านฟอร์ม Login แล้วตรวจว่ามี focus ring จริง) + screenshot `authentication/login-keyboard-focus.png`; ทุกหน้าใช้ focus ring ของ Bootstrap ตัวเดียวกันและไม่มีที่ไหนปิด outline
+- [x] ไม่มี clipping / overlap / horizontal overflow ที่ desktop / tablet / mobile — RESP-01 วัด `scrollWidth ≤ clientWidth` 6 หน้าจอ × 3 ขนาด และวัดว่าปุ่มบน mobile ≥ 44px
+- [x] dialog ยืนยัน status แสดงถูกต้องและ Cancel ไม่ยิง request — UI-19, E2E-05, screenshot `staff-ticket-detail/confirm-resolve.png`
 
 ## 14. Screenshot Paths (labsheet §12)
 
+ชุดที่ถ่ายจริงโดย `e2e/lab-03/` (แก้ตอน L3-10 จากรายการที่วางแผนไว้ให้ตรงกับไฟล์จริง):
+
 ```
 artifacts/lab-03/screenshots/
-├── authentication/{login,login-invalid,login-inactive,change-password,shell-<role>}-{desktop,tablet,mobile}.png
-├── staff-queue/{desktop,tablet,mobile}.png (+ filtered, empty, no-results)
-├── staff-ticket-detail/{desktop,tablet,mobile}.png (+ confirm-dialog, terminal)
-└── user-management/{desktop,tablet,mobile}.png (+ create, edit, last-admin-error)
+├── authentication/
+│   ├── login-{desktop,tablet,mobile}, change-password-{desktop,tablet,mobile}     (RESP-01)
+│   ├── login-empty, login-validation, login-invalid, login-inactive, requester-home (E2E-01)
+│   ├── change-password-forced, change-password-policy-error, change-password-success (E2E-02)
+│   ├── forbidden-requester-on-queue, admin-menu                                  (E2E-04)
+│   └── mobile-menu-open, login-keyboard-focus                                    (RESP-01)
+├── staff-queue/
+│   ├── queue-{desktop,tablet,mobile}                                             (RESP-01)
+│   └── queue-default, queue-sorted-it-priority, queue-filtered-unassigned,
+│       queue-no-results, queue-loading, queue-failure                             (E2E-05 file)
+├── staff-ticket-detail/
+│   ├── staff-detail-{desktop,tablet,mobile}, requester-detail-{desktop,tablet,mobile} (RESP-01)
+│   └── detail-in-progress, requester-view-after-reply, confirm-resolve,
+│       detail-closed-read-only                                                    (E2E-05)
+└── user-management/
+    ├── users-{desktop,tablet,mobile}                                             (RESP-01)
+    └── list, create-validation, create-filled, created-must-change,
+        edit-deactivate, edit-own-account, forbidden-it-staff                      (E2E-06…08)
 ```
+
+ไม่มี screenshot "last-admin-error" ในเบราว์เซอร์: สถานการณ์นี้เกิดได้เฉพาะเมื่อ admin สองคนกดพร้อมกัน จึงพิสูจน์ด้วย API-38 (บังคับให้ชนกันจริง) และ UI-29 (หน้าจอแสดงข้อความจาก `409 LAST_ADMIN`)
