@@ -26,6 +26,39 @@ export async function createTicketAs(agent: TestAgent, summary = 'Printer on flo
   return res.body as { id: number; ticketNumber: string }
 }
 
+type Status = 'NEW' | 'OPEN' | 'IN_PROGRESS' | 'WAITING_FOR_REQUESTER' | 'RESOLVED' | 'CLOSED' | 'REOPENED' | 'CANCELLED'
+type Priority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+
+/**
+ * Inserts a Ticket straight into the database, for states the API can't
+ * reach yet (or would need many steps to reach). The requester must be a
+ * test user so cleanupTestUsers() removes it.
+ */
+export async function insertTicket(options: {
+  requesterId: number
+  summary: string
+  status?: Status
+  itPriority?: Priority
+  ownerId?: number | null
+  categoryId?: number
+}) {
+  const ids = await referenceIds()
+  return prisma.ticket.create({
+    data: {
+      ticketNumber: `TKT-TEST-${Math.random().toString(36).slice(2, 10)}`,
+      requesterId: options.requesterId,
+      categoryId: options.categoryId ?? ids.categoryId,
+      relatedSystemId: ids.relatedSystemId,
+      summary: options.summary,
+      description: 'Fixture ticket inserted directly by a test.',
+      requestedPriority: options.itPriority === 'CRITICAL' ? 'HIGH' : (options.itPriority ?? 'LOW'),
+      itPriority: options.itPriority ?? 'LOW',
+      currentStatus: options.status ?? 'NEW',
+      ownerId: options.ownerId ?? null,
+    },
+  })
+}
+
 /** Uploads a tiny PNG to the Ticket through the real API. */
 export async function uploadAttachmentAs(agent: TestAgent, ticketId: number) {
   const res = await agent

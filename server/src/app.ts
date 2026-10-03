@@ -7,6 +7,7 @@ import { prisma } from './db'
 import { parseId, sendError } from './http'
 import { authenticate, requireRole } from './auth/middleware'
 import { authRouter } from './auth/routes'
+import { staffRouter } from './staff/routes'
 import { generateTicketNumber } from './ticketNumber'
 import type { Priority } from './generated/prisma/client'
 import {
@@ -26,6 +27,7 @@ app.use(express.json())
 // rejects on its own — see auth/middleware.ts), then the auth endpoints.
 app.use(authenticate)
 app.use('/api/auth', authRouter)
+app.use('/api/staff', staffRouter)
 
 // Liveness landing route.
 app.get('/', (_req, res) => {

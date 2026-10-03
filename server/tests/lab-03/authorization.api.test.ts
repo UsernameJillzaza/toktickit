@@ -41,8 +41,14 @@ const REQUESTER_ONLY: Call[] = [
   { method: 'post', path: () => `/api/attachments/${attachmentOfB.id}/remove`, label: 'POST /api/attachments/:id/remove' },
 ]
 
+// Section 5.1 rows 'Queue, staff Ticket Detail, assignee list' onwards.
+const STAFF_ONLY: Call[] = [
+  { method: 'get', path: () => '/api/staff/tickets', label: 'GET /api/staff/tickets' },
+]
+
 const PROTECTED: Call[] = [
   ...REQUESTER_ONLY,
+  ...STAFF_ONLY,
   { method: 'get', path: () => `/api/attachments/${attachmentOfB.id}`, label: 'GET /api/attachments/:id' },
   { method: 'get', path: () => `/api/attachments/${attachmentOfB.id}/download`, label: 'GET /api/attachments/:id/download' },
   { method: 'get', path: () => '/api/auth/me', label: 'GET /api/auth/me' },
@@ -79,6 +85,15 @@ describe('API-11 wrong role', () => {
       })
     })
   }
+})
+
+// API-11 (AC-10, BR-15): Requesters can't reach IT Staff endpoints.
+describe('API-11 requester on staff endpoints', () => {
+  it.each(STAFF_ONLY.map((c) => [c.label, c] as const))('REQUESTER: %s → 403 FORBIDDEN', async (_label, call) => {
+    const res = await requesterA.agent[call.method](call.path()).send({})
+    expect(res.status).toBe(403)
+    expect(res.body.code).toBe('FORBIDDEN')
+  })
 })
 
 // API-12 (AC-03, BR-03): requesterId from the client is ignored.
