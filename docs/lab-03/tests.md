@@ -77,7 +77,7 @@
 | API-19 | API | FR-12 | staff detail มี requester, owner, attachments, `allowedTransitions` | ครบ, `allowedTransitions` ตรง matrix | server/tests/lab-03/staff-ticket-detail.api.test.ts | Planned |
 | API-20 | API | AC-17, BR-18/19 | claim, reassign, unassign; assign ให้ inactive / Requester | `200` / `400 ASSIGNEE_INVALID` | server/tests/lab-03/staff-ticket-detail.api.test.ts | Planned |
 | API-21 | API | AC-18, BR-21 | IT Staff ตั้ง IT Priority; Requester เรียกเดียวกัน | `200` + requestedPriority เดิม / `403` | server/tests/lab-03/staff-ticket-detail.api.test.ts | Planned |
-| API-22 | API | AC-19, BR-22/23 | transition ถูก / นอก matrix / ไม่มี owner / unassign ตอน IN_PROGRESS | `200` / `409 INVALID_TRANSITION` / `409 OWNER_REQUIRED` | server/tests/lab-03/staff-ticket-detail.api.test.ts | Planned |
+| API-22 | API | AC-19, BR-22/23 | transition ถูก / นอก matrix / ไม่มี owner / unassign ตอน IN_PROGRESS / unassign กับเปลี่ยนเป็น IN_PROGRESS พร้อมกัน (race) | `200` / `409 INVALID_TRANSITION` / `409 OWNER_REQUIRED` | server/tests/lab-03/staff-ticket-detail.api.test.ts | Planned |
 | API-23 | API | AC-21, BR-20 | Ticket CLOSED: เปลี่ยน owner / priority / status | `409` ทุกตัว | server/tests/lab-03/staff-ticket-detail.api.test.ts | Planned |
 | API-24 | API | FR-18 | IT Staff ดาวน์โหลด attachment ของ Ticket ใดก็ได้; removed → 404 | `200` ไฟล์จริง / `404` | server/tests/lab-03/staff-ticket-detail.api.test.ts | Planned |
 | API-25 | API | BR-25, BR-26 | ไป REOPENED ล้าง `requesterResolvedAt`; ทุก mutation ขยับ `updatedAt` | ค่าเป็น null / updatedAt ใหม่กว่าเดิม | server/tests/lab-03/staff-ticket-detail.api.test.ts | Planned |

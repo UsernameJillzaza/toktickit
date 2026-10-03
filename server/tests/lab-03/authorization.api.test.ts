@@ -31,7 +31,7 @@ afterAll(async () => {
   await prisma.$disconnect()
 })
 
-type Call = { method: 'get' | 'post'; path: () => string; label: string }
+type Call = { method: 'get' | 'post' | 'put'; path: () => string; label: string }
 
 const REQUESTER_ONLY: Call[] = [
   { method: 'post', path: () => '/api/tickets', label: 'POST /api/tickets' },
@@ -44,6 +44,11 @@ const REQUESTER_ONLY: Call[] = [
 // Section 5.1 rows 'Queue, staff Ticket Detail, assignee list' onwards.
 const STAFF_ONLY: Call[] = [
   { method: 'get', path: () => '/api/staff/tickets', label: 'GET /api/staff/tickets' },
+  { method: 'get', path: () => `/api/staff/tickets/${ticketOfB.id}`, label: 'GET /api/staff/tickets/:id' },
+  { method: 'get', path: () => '/api/staff/assignees', label: 'GET /api/staff/assignees' },
+  { method: 'put', path: () => `/api/staff/tickets/${ticketOfB.id}/owner`, label: 'PUT /api/staff/tickets/:id/owner' },
+  { method: 'put', path: () => `/api/staff/tickets/${ticketOfB.id}/it-priority`, label: 'PUT /api/staff/tickets/:id/it-priority' },
+  { method: 'put', path: () => `/api/staff/tickets/${ticketOfB.id}/status`, label: 'PUT /api/staff/tickets/:id/status' },
 ]
 
 const PROTECTED: Call[] = [
