@@ -23,7 +23,7 @@ export async function createTicketAs(agent: TestAgent, summary = 'Printer on flo
     requestedPriority: 'MEDIUM',
   })
   if (res.status !== 201) throw new Error(`createTicketAs failed: ${res.status} ${JSON.stringify(res.body)}`)
-  return res.body as { id: number; ticketNumber: string; requesterId: number }
+  return res.body as { id: number; ticketNumber: string }
 }
 
 /** Uploads a tiny PNG to the Ticket through the real API. */

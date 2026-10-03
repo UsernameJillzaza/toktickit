@@ -71,6 +71,50 @@ app.get('/api/related-systems', async (_req, res) => {
 const requesterOnly = requireRole('REQUESTER')
 const anySignedInRole = requireRole('REQUESTER', 'IT_STAFF', 'ADMIN')
 
+// Response shapes for the Requester side, pinned to api-spec.md so a new
+// Ticket column (itPriority, ownerId …) can never leak to a Requester by
+// accident (BR-21). Each is an explicit allow-list.
+const REQUESTER_CREATED_SELECT = {
+  id: true,
+  ticketNumber: true,
+  summary: true,
+  description: true,
+  requestedPriority: true,
+  currentStatus: true,
+  categoryId: true,
+  relatedSystemId: true,
+  createdAt: true,
+} as const
+
+const REQUESTER_LIST_SELECT = {
+  id: true,
+  ticketNumber: true,
+  summary: true,
+  requestedPriority: true,
+  currentStatus: true,
+  createdAt: true,
+  updatedAt: true,
+  category: { select: { name: true } },
+} as const
+
+const REQUESTER_DETAIL_SELECT = {
+  id: true,
+  ticketNumber: true,
+  summary: true,
+  description: true,
+  requestedPriority: true,
+  currentStatus: true,
+  requesterResolvedAt: true,
+  createdAt: true,
+  updatedAt: true,
+  category: { select: { name: true } },
+  relatedSystem: { select: { name: true } },
+  owner: { select: { name: true } },
+  attachments: {
+    select: { id: true, filename: true, mimeType: true, sizeBytes: true, isRemoved: true, removedAt: true, createdAt: true },
+  },
+} as const
+
 /** A Requester may only touch their own Tickets; IT Staff / Admin may read any (5.1). */
 function canReadTicket(user: { id: number; role: string }, ticket: { requesterId: number }) {
   return user.role !== 'REQUESTER' || ticket.requesterId === user.id
@@ -152,6 +196,7 @@ app.post('/api/tickets', requesterOnly, async (req, res) => {
             requestedPriority,
             itPriority: requestedPriority, // BR-21: IT Priority starts equal
           },
+          select: REQUESTER_CREATED_SELECT,
         })
         return res.status(201).json(ticket)
       } catch (err) {
@@ -235,7 +280,7 @@ app.get('/api/tickets', requesterOnly, async (req, res) => {
         orderBy,
         skip: (page - 1) * pageSize,
         take: pageSize,
-        include: { category: { select: { name: true } } },
+        select: REQUESTER_LIST_SELECT,
       }),
       prisma.ticket.count({ where }),
     ])
@@ -255,27 +300,13 @@ app.get('/api/tickets/:id', requesterOnly, async (req, res) => {
   const requesterId = req.user!.id
 
   try {
-    const ticket = await prisma.ticket.findUnique({
-      where: { id },
-      include: {
-        category: { select: { name: true } },
-        relatedSystem: { select: { name: true } },
-        attachments: {
-          select: {
-            id: true,
-            filename: true,
-            mimeType: true,
-            sizeBytes: true,
-            isRemoved: true,
-            removedAt: true,
-            createdAt: true,
-          },
-        },
-      },
+    // Ownership is part of the WHERE clause, so another requester's ticket
+    // and a missing one take the same path (BR-16).
+    const ticket = await prisma.ticket.findFirst({
+      where: { id, requesterId },
+      select: REQUESTER_DETAIL_SELECT,
     })
-    if (!ticket || ticket.requesterId !== requesterId) {
-      return sendError(res, 404, 'Ticket not found', 'NOT_FOUND')
-    }
+    if (!ticket) return sendError(res, 404, 'Ticket not found', 'NOT_FOUND')
     res.status(200).json(ticket)
   } catch (err) {
     console.error(err)
