@@ -41,6 +41,7 @@ describe('generateTicketNumber', () => {
           summary: 'Unit test ticket for number generation',
           description: 'Created only to exercise generateTicketNumber() uniqueness.',
           requestedPriority: 'LOW',
+          itPriority: 'LOW',
         },
       })
       createdTicketIds.push(ticket.id)

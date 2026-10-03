@@ -31,6 +31,7 @@ async function createTicketFor(requesterId: number) {
       summary: 'Fixture ticket for ticket-detail.api.test.ts',
       description: 'Created only to exercise GET /api/tickets/:id.',
       requestedPriority: 'LOW',
+      itPriority: 'LOW',
     },
   })
 }

@@ -8,6 +8,7 @@ import { parseId, sendError } from './http'
 import { authenticate, requireRole } from './auth/middleware'
 import { authRouter } from './auth/routes'
 import { generateTicketNumber } from './ticketNumber'
+import type { Priority } from './generated/prisma/client'
 import {
   sanitizeFilename,
   ALLOWED_ATTACHMENT_MIME_TYPES,
@@ -75,7 +76,11 @@ function canReadTicket(user: { id: number; role: string }, ticket: { requesterId
   return user.role !== 'REQUESTER' || ticket.requesterId === user.id
 }
 
-const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH']
+// Requesters choose from three values; CRITICAL is IT-only (BR-21).
+const PRIORITIES: Priority[] = ['LOW', 'MEDIUM', 'HIGH']
+function isRequesterPriority(value: unknown): value is Priority {
+  return typeof value === 'string' && (PRIORITIES as string[]).includes(value)
+}
 
 function validateTicketInput(body: unknown): { field: string; message: string } | null {
   const b = (body ?? {}) as Record<string, unknown>
@@ -90,7 +95,7 @@ function validateTicketInput(body: unknown): { field: string; message: string } 
   ) {
     return { field: 'description', message: 'Description must be 10-2000 characters.' }
   }
-  if (typeof b.requestedPriority !== 'string' || !PRIORITIES.includes(b.requestedPriority)) {
+  if (!isRequesterPriority(b.requestedPriority)) {
     return { field: 'requestedPriority', message: 'requestedPriority must be LOW, MEDIUM, or HIGH.' }
   }
   if (typeof b.categoryId !== 'number') {
@@ -120,7 +125,7 @@ app.post('/api/tickets', requesterOnly, async (req, res) => {
       relatedSystemId: number
       summary: string
       description: string
-      requestedPriority: string
+      requestedPriority: Priority
     }
 
   try {
@@ -145,6 +150,7 @@ app.post('/api/tickets', requesterOnly, async (req, res) => {
             summary: summary.trim(),
             description: description.trim(),
             requestedPriority,
+            itPriority: requestedPriority, // BR-21: IT Priority starts equal
           },
         })
         return res.status(201).json(ticket)
@@ -198,6 +204,10 @@ app.get('/api/tickets', requesterOnly, async (req, res) => {
   const search = typeof req.query.search === 'string' ? req.query.search : ''
   const categoryId = req.query.categoryId ? Number(req.query.categoryId) : undefined
   const priority = typeof req.query.priority === 'string' ? req.query.priority : undefined
+  // The column is an enum now, so an unknown value would make Prisma throw (500).
+  if (priority !== undefined && !isRequesterPriority(priority)) {
+    return sendError(res, 400, 'priority must be LOW, MEDIUM, or HIGH.', 'VALIDATION_ERROR', 'priority')
+  }
 
   const where = {
     requesterId,

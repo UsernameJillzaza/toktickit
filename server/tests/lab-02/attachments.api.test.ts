@@ -28,6 +28,7 @@ async function newFixtureTicket() {
       summary: 'Fixture ticket for attachments.api.test.ts',
       description: 'Created only to exercise attachment endpoints.',
       requestedPriority: 'LOW',
+      itPriority: 'LOW',
     },
   })
   return ticket.id
