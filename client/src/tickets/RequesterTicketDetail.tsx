@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { useRequester } from '../requester/RequesterContext'
+import { useAuth } from '../auth/AuthContext'
 
 type Attachment = {
   id: number
@@ -33,7 +33,9 @@ type LoadState = 'loading' | 'ready' | 'not-found' | 'failure'
 // scope for Lab 2 — see specification.md Section 3 Excluded).
 export default function RequesterTicketDetail() {
   const { id } = useParams<{ id: string }>()
-  const { requester } = useRequester()
+  // L3-3: the signed-in user replaces the Lab 2 selector. requesterId is still
+  // sent until L3-4 makes the server read identity from the session instead.
+  const { user: requester } = useAuth()
 
   const [state, setState] = useState<LoadState>('loading')
   const [ticket, setTicket] = useState<TicketDetail | null>(null)

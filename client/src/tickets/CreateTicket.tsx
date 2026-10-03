@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useRequester } from '../requester/RequesterContext'
+import { useAuth } from '../auth/AuthContext'
 
 type RefItem = { id: number; name: string }
 type RefState = 'loading' | 'ready' | 'failure'
@@ -14,7 +14,9 @@ const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH'] as const
 // API failure. System-generated Ticket Number is read-only and only ever
 // shown after a successful save (BR-01).
 export default function CreateTicket() {
-  const { requester } = useRequester()
+  // L3-3: the signed-in user replaces the Lab 2 selector. requesterId is still
+  // sent until L3-4 makes the server read identity from the session instead.
+  const { user: requester } = useAuth()
 
   const [refState, setRefState] = useState<RefState>('loading')
   const [categories, setCategories] = useState<RefItem[]>([])

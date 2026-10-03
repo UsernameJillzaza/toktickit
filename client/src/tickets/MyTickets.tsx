@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useRequester } from '../requester/RequesterContext'
+import { useAuth } from '../auth/AuthContext'
 
 type TicketRow = {
   id: number
@@ -20,7 +20,9 @@ const PAGE_SIZE = 10
 // ticket) is deliberately distinct from no-results (a filter/search matched
 // nothing) — AC-09 vs AC-10.
 export default function MyTickets() {
-  const { requester } = useRequester()
+  // L3-3: the signed-in user replaces the Lab 2 selector. requesterId is still
+  // sent until L3-4 makes the server read identity from the session instead.
+  const { user: requester } = useAuth()
 
   const [listState, setListState] = useState<ListState>('loading')
   const [items, setItems] = useState<TicketRow[]>([])
