@@ -1,4 +1,6 @@
 import { randomBytes } from 'node:crypto'
+import fs from 'node:fs'
+import path from 'node:path'
 import request from 'supertest'
 import app from '../../src/app'
 import { prisma } from '../../src/db'
@@ -69,6 +71,10 @@ export async function cleanupTestUsers() {
   if (ticketIds.length > 0) {
     await prisma.attachment.deleteMany({ where: { ticketId: { in: ticketIds } } })
     await prisma.ticket.deleteMany({ where: { id: { in: ticketIds } } })
+    // Files multer wrote for these tickets (uploads/<ticketId>/…).
+    for (const id of ticketIds) {
+      fs.rmSync(path.join(process.cwd(), 'uploads', String(id)), { recursive: true, force: true })
+    }
   }
   await prisma.user.deleteMany({ where: { id: { in: ids } } })
 }
