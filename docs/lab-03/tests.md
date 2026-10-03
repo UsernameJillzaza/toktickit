@@ -111,7 +111,7 @@
 | API-35 | API | AC-31, BR-13 | แก้ name/email/role; deactivate แล้ว session เดิมของ user นั้น | ค่าใหม่ / `401` | server/tests/lab-03/users-admin.api.test.ts | Planned |
 | API-36 | API | AC-32, BR-35 | ตั้ง initial password ใหม่ | session เดิม `401`, login ใหม่ต้องเปลี่ยนรหัส | server/tests/lab-03/users-admin.api.test.ts | Planned |
 | API-37 | API | AC-33, BR-36 | admin deactivate / เปลี่ยน role ตัวเอง | `409 SELF_MODIFICATION` | server/tests/lab-03/users-admin.api.test.ts | Planned |
-| API-38 | API | AC-34, BR-37 | admin ทดสอบ 2 คนเป็น admin active เพียงสองคน (ปิด admin อื่นชั่วคราวแล้วคืนค่าใน `finally`) แล้วยิง deactivate กันและกัน **พร้อมกัน** | สำเร็จ 1 / `409 LAST_ADMIN` 1 / เหลือ admin active ≥ 1 | server/tests/lab-03/users-admin.api.test.ts | Planned |
+| API-38 | API | AC-34, BR-37 | admin ทดสอบ 2 คนเป็น admin active เพียงสองคน (ปิด admin อื่นชั่วคราวแล้วคืนค่าใน `finally`) แล้วยิง deactivate กันและกัน **พร้อมกัน** — เทสต์ถือ lock แถว admin เองจนเห็นทั้งสอง request รอคิวใน `pg_stat_activity` แล้วจึงปล่อย เพื่อให้การชนกันเกิดทุกครั้ง (ไม่ใช่แล้วแต่จังหวะ) | สำเร็จ 1 / `409 LAST_ADMIN` 1 / เหลือ admin active ≥ 1 | server/tests/lab-03/users-admin.api.test.ts | Planned |
 | API-39 | API | AC-35 | Requester / IT Staff เรียก `/api/admin/*` | `403` | server/tests/lab-03/users-admin.api.test.ts | Planned |
 | UI-26 | UI | AC-28 | ตาราง Name/Email/Role/Status/Edit; search + role filter ยิง query | ครบ | client/tests/lab-03/UserManagement.test.tsx | Planned |
 | UI-27 | UI | AC-30 | create ไม่กรอกช่อง → error ใต้ field ไม่ยิง API; `409 DUPLICATE_EMAIL` แสดงใต้ Email | ตรงตามนั้น | client/tests/lab-03/UserManagement.test.tsx | Planned |
