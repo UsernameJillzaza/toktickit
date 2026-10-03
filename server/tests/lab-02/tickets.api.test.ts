@@ -18,7 +18,7 @@ afterAll(async () => {
 })
 
 async function validPayload() {
-  const requester = await prisma.devRequester.findFirstOrThrow({ where: { isActive: true } })
+  const requester = await prisma.user.findFirstOrThrow({ where: { isActive: true, role: 'REQUESTER' } })
   const category = await prisma.category.findFirstOrThrow()
   const relatedSystem = await prisma.relatedSystem.findFirstOrThrow()
   return {
@@ -88,7 +88,7 @@ describe('POST /api/tickets — invalid requestedPriority', () => {
 // (mirrors the selector's exclusion rule at the write path, not just reads).
 describe('POST /api/tickets — inactive requester', () => {
   it('returns 404', async () => {
-    const inactive = await prisma.devRequester.findFirstOrThrow({ where: { isActive: false } })
+    const inactive = await prisma.user.findFirstOrThrow({ where: { isActive: false, role: 'REQUESTER' } })
     const payload = await validPayload()
 
     const res = await request(app)

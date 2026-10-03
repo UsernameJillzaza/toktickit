@@ -37,7 +37,7 @@ async function newFixtureTicket() {
 }
 
 beforeAll(async () => {
-  const [requester] = await prisma.devRequester.findMany({ where: { isActive: true }, take: 1 })
+  const [requester] = await prisma.user.findMany({ where: { isActive: true, role: 'REQUESTER' }, take: 1 })
   requesterId = requester.id
   ticketId = await newFixtureTicket()
   softRemoveTicketId = await newFixtureTicket()

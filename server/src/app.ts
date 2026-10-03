@@ -1,10 +1,8 @@
-import 'dotenv/config'
 import fs from 'node:fs'
 import path from 'node:path'
 import express from 'express'
 import multer from 'multer'
-import { PrismaPg } from '@prisma/adapter-pg'
-import { PrismaClient } from './generated/prisma/client'
+import { prisma } from './db'
 import { generateTicketNumber } from './ticketNumber'
 import {
   sanitizeFilename,
@@ -15,12 +13,10 @@ import {
 
 // The Express app is defined here and exported WITHOUT calling listen(),
 // so tests (Supertest) can import it directly. server.ts owns listen().
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL })
-const prisma = new PrismaClient({ adapter })
-
 const app = express()
 
 app.use(express.json())
+
 
 // Liveness landing route.
 app.get('/', (_req, res) => {
@@ -48,10 +44,12 @@ app.get('/api/categories', async (_req, res) => {
 
 // GET /api/requesters — active Development Requesters only (Lab 2 §5.3, BR-05).
 // This selector is a testing mechanism, not authentication (BR-03).
+// Lab 3 L3-2: DevRequester is now User; the selector keeps working against
+// REQUESTER users until L3-4 removes it (spec BR-42).
 app.get('/api/requesters', async (_req, res) => {
   try {
-    const requesters = await prisma.devRequester.findMany({
-      where: { isActive: true },
+    const requesters = await prisma.user.findMany({
+      where: { isActive: true, role: 'REQUESTER' },
       orderBy: { name: 'asc' },
       select: { id: true, name: true, email: true },
     })
@@ -127,8 +125,8 @@ app.post('/api/tickets', async (req, res) => {
     }
 
   try {
-    const requester = await prisma.devRequester.findUnique({ where: { id: requesterId } })
-    if (!requester || !requester.isActive) {
+    const requester = await prisma.user.findUnique({ where: { id: requesterId } })
+    if (!requester || !requester.isActive || requester.role !== 'REQUESTER') {
       return res.status(404).json({ error: 'Requester not found' })
     }
     const category = await prisma.category.findUnique({ where: { id: categoryId } })

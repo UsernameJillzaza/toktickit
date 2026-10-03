@@ -44,10 +44,11 @@ async function main() {
   console.log(`Seeded ${CATEGORIES.length} categories`)
 
   for (const requester of DEV_REQUESTERS) {
-    await prisma.devRequester.upsert({
+    // Lab 3 L3-2: DevRequester is now User (role REQUESTER).
+    await prisma.user.upsert({
       where: { email: requester.email },
       update: {},
-      create: requester,
+      create: { ...requester, role: 'REQUESTER' },
     })
   }
   console.log(`Seeded ${DEV_REQUESTERS.length} development requesters`)
