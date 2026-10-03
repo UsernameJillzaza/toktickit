@@ -4,7 +4,7 @@ import { PrismaClient } from '../src/generated/prisma/client'
 import type { Role } from '../src/generated/prisma/client'
 import { hashPassword } from '../src/auth/password'
 import { SEED_DEMO_PASSWORD, SEED_INITIAL_PASSWORD } from './seed-credentials'
-import { SEED_TICKETS } from './seed-tickets'
+import { SEED_COMMENTS, SEED_NOTES, SEED_TICKETS } from './seed-tickets'
 import { generateTicketNumber } from '../src/ticketNumber'
 
 // Prisma 7's client generator requires an explicit driver adapter.
@@ -134,6 +134,29 @@ async function main() {
     added++
   }
   console.log(`Seeded ${SEED_TICKETS.length} sample tickets (${added} new)`)
+
+  // Sample public comments and internal notes. An entry counts as seeded when
+  // the same author already wrote the same text on that ticket (BR-41).
+  const MINUTE_MS = 60 * 1000
+  async function seedEntries(kind: 'comment' | 'note', entries: typeof SEED_COMMENTS) {
+    let created = 0
+    for (const e of entries) {
+      const ticket = await prisma.ticket.findFirst({ where: { summary: e.ticket }, orderBy: { id: 'asc' } })
+      if (!ticket) continue
+      const author = await prisma.user.findUniqueOrThrow({ where: { email: `${e.author}@toktickit.test` } })
+      const where = { ticketId: ticket.id, authorId: author.id, body: e.body }
+      const exists = kind === 'comment' ? await prisma.publicComment.findFirst({ where }) : await prisma.internalNote.findFirst({ where })
+      if (exists) continue
+      const data = { ...where, createdAt: new Date(ticket.createdAt.getTime() + e.minutesAfterCreate * MINUTE_MS) }
+      if (kind === 'comment') await prisma.publicComment.create({ data })
+      else await prisma.internalNote.create({ data })
+      created++
+    }
+    return created
+  }
+  const newComments = await seedEntries('comment', SEED_COMMENTS)
+  const newNotes = await seedEntries('note', SEED_NOTES)
+  console.log(`Seeded ${SEED_COMMENTS.length} comments (${newComments} new) and ${SEED_NOTES.length} internal notes (${newNotes} new)`)
 }
 
 main()

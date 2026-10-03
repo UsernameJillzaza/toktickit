@@ -20,6 +20,25 @@ export type SeedTicket = {
   requesterReportedResolved?: boolean
 }
 
+// Sample conversation on a few seeded tickets (spec section 7): public
+// comments the requester sees, and internal notes only IT Staff / Admins see.
+// `ticket` is the seeded summary; authors are email local parts.
+export type SeedEntry = { ticket: string; author: string; body: string; minutesAfterCreate: number }
+
+export const SEED_COMMENTS: SeedEntry[] = [
+  { ticket: 'No Wi-Fi signal in meeting room B2', author: 'arthit.wongsa', body: 'I am on my way to check the access point in B2.', minutesAfterCreate: 90 },
+  { ticket: 'No Wi-Fi signal in meeting room B2', author: 'michael.brown', body: 'Thanks! The room is free until 3 pm if you need it.', minutesAfterCreate: 120 },
+  { ticket: 'Docking station not detecting second monitor', author: 'daniel.lee', body: 'Could you tell me the model printed under the docking station?', minutesAfterCreate: 300 },
+  { ticket: 'Calendar invites arrive one hour late', author: 'nattaya.chaiyaporn', body: 'Invites have been on time since yesterday, I think it is fixed.', minutesAfterCreate: 2000 },
+  { ticket: 'Wi-Fi login page loops back to start', author: 'jennifer.anderson', body: 'It started happening again after the weekend.', minutesAfterCreate: 4000 },
+]
+
+export const SEED_NOTES: SeedEntry[] = [
+  { ticket: 'No Wi-Fi signal in meeting room B2', author: 'arthit.wongsa', body: 'Access point AP-B2-01 shows as offline in the controller. PoE port may be dead.', minutesAfterCreate: 100 },
+  { ticket: 'Locked out after password reset email', author: 'napat.chaiwong', body: 'Reset links expire after 10 minutes, mail gateway delays them by 15. Raised with the mail team.', minutesAfterCreate: 60 },
+  { ticket: 'Wi-Fi login page loops back to start', author: 'siriporn.kaewmanee', body: 'Same symptom as last month: captive portal certificate. Check expiry first.', minutesAfterCreate: 4100 },
+]
+
 export const SEED_TICKETS: SeedTicket[] = [
   // NEW — nobody has looked yet (BR-18: no owner)
   { requester: 'jennifer.anderson', owner: null, category: 'Network', relatedSystem: 'Campus Wi-Fi', summary: 'Wi-Fi drops in the library reading room', description: 'The connection drops every few minutes on the second floor of the library.', requestedPriority: 'MEDIUM', itPriority: 'MEDIUM', status: 'NEW', createdDaysAgo: 1, updatedDaysAgo: 1 },
