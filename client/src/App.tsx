@@ -12,12 +12,13 @@ import HomePage from './HomePage'
 import CreateTicket from './tickets/CreateTicket'
 import MyTickets from './tickets/MyTickets'
 import RequesterTicketDetail from './tickets/RequesterTicketDetail'
+import StaffTicketQueue from './staff/StaffTicketQueue'
 
 type NavItem = { to: string; label: string }
 
 // FR-06 / ui-spec.md §3: a destination the role can't use is not in the
-// menu at all. Staff and Admin destinations (Ticket Queue, User
-// Management) are added by the PRs that build those screens.
+// menu at all. Administrators share the Ticket Queue (BR-17); their User
+// Management item arrives with that screen in L3-8.
 function navItemsFor(role: Role): NavItem[] {
   switch (role) {
     case 'REQUESTER':
@@ -27,7 +28,7 @@ function navItemsFor(role: Role): NavItem[] {
       ]
     case 'IT_STAFF':
     case 'ADMIN':
-      return []
+      return [{ to: '/staff/queue', label: 'Ticket Queue' }]
   }
 }
 
@@ -145,6 +146,14 @@ function AppShell() {
           element={
             <RequireAuth roles={['REQUESTER']}>
               <RequesterTicketDetail />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/staff/queue"
+          element={
+            <RequireAuth roles={['IT_STAFF', 'ADMIN']}>
+              <StaffTicketQueue />
             </RequireAuth>
           }
         />
