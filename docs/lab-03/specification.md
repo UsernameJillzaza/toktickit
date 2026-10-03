@@ -355,8 +355,8 @@ Error shape ทุก endpoint: `{ "error": "<ข้อความที่ป�
 | --- | --- | --- | --- |
 | L3-1 | Sprint 3 engineering contract | 4 ไฟล์ spec นี้ | — |
 | L3-2 | Authentication foundation | migration `User` / `Session`, scrypt, auth API, middleware, seed, tests | L3-1 |
-| L3-3 | Login, password change, role shell | หน้า Login / Change Password, AuthContext, route guard, เมนูตาม role, Forbidden | L3-2 |
-| L3-4 | Requester regression on authenticated identity | API ของ Lab 2 ใช้ session, ลบ selector, ปรับเทสต์ Lab 2 | L3-3 |
+| L3-3 | Login, password change, role shell | หน้า Login / Change Password, AuthContext, route guard, เมนูตาม role, Forbidden; ลบ selector ฝั่ง client — หน้าจอ Requester ใช้ตัวตนจาก login; ปรับเทสต์ client ของ Lab 2 | L3-2 |
+| L3-4 | Requester regression on authenticated identity (server) | API ของ Lab 2 ใช้ session แทน `requesterId`, ลบ `GET /api/requesters`, attachment ของ IT Staff, authorization tests, ปรับเทสต์ server ของ Lab 2 | L3-3 |
 | L3-5 | IT Staff Ticket Queue | migration workflow, queue API, หน้าคิว, seed Ticket | L3-4 |
 | L3-6 | IT Staff Ticket operations | staff detail, owner / IT Priority / status, transition matrix | L3-5 |
 | L3-7 | Public Comments, Internal Notes, resolved indication | migration comment / note, API, UI ทั้งสองฝั่ง | L3-6 |
@@ -364,4 +364,4 @@ Error shape ทุก endpoint: `{ "error": "<ข้อความที่ป�
 | L3-9 | E2E and responsive evidence | Playwright `e2e/lab-03/`, screenshot, visual checklist | L3-8 |
 | L3-10 | Lab 3 documentation | `reviewer.md`, `ai-use.md`, ผลเทสต์สุดท้ายใน `tests.md`, README | L3-9 |
 
-แบ่งตาม "หน่วยที่ review และทดสอบแยกได้": auth ต้องมาก่อนทุกอย่างเพราะทุก endpoint อ้าง session; regression ของ Requester ทำทันทีหลังมี login เพื่อไม่ให้ระบบอยู่ในสภาพ "ครึ่ง selector ครึ่ง login" นาน; งาน IT Staff แยกคิวออกจาก operations เพื่อให้ PR ไม่ใหญ่เกินรีวิว; L3-8 ขึ้นกับ L3-3 จริง ๆ เท่านั้น แต่ทำต่อท้ายสายเพราะแก้ไฟล์ shell / routing ชุดเดียวกับ L3-5–L3-7 จะได้ไม่ชนกันตอน merge
+แบ่งตาม "หน่วยที่ review และทดสอบแยกได้": auth ต้องมาก่อนทุกอย่างเพราะทุก endpoint อ้าง session; selector ฝั่ง client ถูกลบใน PR เดียวกับหน้า Login (L3-3) เพราะถ้าเหลือไว้ Requester ที่ login แล้วจะยังเลือก "เป็นคนอื่น" ได้ระหว่างรอ PR ถัดไป; ฝั่ง server ย้ายไปใช้ session ทันทีใน L3-4 เพื่อไม่ให้ระบบอยู่ในสภาพ "ครึ่ง selector ครึ่ง login" นาน; งาน IT Staff แยกคิวออกจาก operations เพื่อให้ PR ไม่ใหญ่เกินรีวิว; L3-8 ขึ้นกับ L3-3 จริง ๆ เท่านั้น แต่ทำต่อท้ายสายเพราะแก้ไฟล์ shell / routing ชุดเดียวกับ L3-5–L3-7 จะได้ไม่ชนกันตอน merge
