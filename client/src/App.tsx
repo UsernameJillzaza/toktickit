@@ -13,6 +13,7 @@ import CreateTicket from './tickets/CreateTicket'
 import MyTickets from './tickets/MyTickets'
 import RequesterTicketDetail from './tickets/RequesterTicketDetail'
 import StaffTicketQueue from './staff/StaffTicketQueue'
+import StaffTicketDetail from './staff/StaffTicketDetail'
 
 type NavItem = { to: string; label: string }
 
@@ -154,6 +155,14 @@ function AppShell() {
           element={
             <RequireAuth roles={['IT_STAFF', 'ADMIN']}>
               <StaffTicketQueue />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/staff/tickets/:id"
+          element={
+            <RequireAuth roles={['IT_STAFF', 'ADMIN']}>
+              <StaffTicketDetail />
             </RequireAuth>
           }
         />
