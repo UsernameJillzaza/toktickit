@@ -68,6 +68,10 @@ export async function cleanupTestUsers() {
   createdUserIds.length = 0
   const tickets = await prisma.ticket.findMany({ where: { requesterId: { in: ids } }, select: { id: true } })
   const ticketIds = tickets.map((t) => t.id)
+  // Comments / notes reference both the ticket and the author (RESTRICT).
+  const byTicketOrAuthor = { OR: [{ ticketId: { in: ticketIds } }, { authorId: { in: ids } }] }
+  await prisma.publicComment.deleteMany({ where: byTicketOrAuthor })
+  await prisma.internalNote.deleteMany({ where: byTicketOrAuthor })
   if (ticketIds.length > 0) {
     await prisma.attachment.deleteMany({ where: { ticketId: { in: ticketIds } } })
     await prisma.ticket.deleteMany({ where: { id: { in: ticketIds } } })

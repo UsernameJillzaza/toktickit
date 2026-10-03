@@ -8,6 +8,7 @@ import { parseId, sendError } from './http'
 import { authenticate, requireRole } from './auth/middleware'
 import { authRouter } from './auth/routes'
 import { staffRouter } from './staff/routes'
+import { conversationRouter } from './tickets/conversation'
 import { generateTicketNumber } from './ticketNumber'
 import type { Priority } from './generated/prisma/client'
 import {
@@ -28,6 +29,7 @@ app.use(express.json())
 app.use(authenticate)
 app.use('/api/auth', authRouter)
 app.use('/api/staff', staffRouter)
+app.use('/api/tickets', conversationRouter)
 
 // Liveness landing route.
 app.get('/', (_req, res) => {
