@@ -58,12 +58,30 @@ cp .env.example .env
 
 `server/.env` is gitignored and must never be committed. Only `server/.env.example` is tracked.
 
-### 4. Initialize the database schema (Prisma)
+### 4. Initialize the database schema and seed data (Prisma)
 
 ```bash
 cd server
-npx prisma migrate dev
+npx prisma migrate deploy
+npx prisma db seed
 ```
+
+`migrate deploy` applies every committed migration in order (it also upgrades an existing Lab 2 database in place — the Lab 3 migrations rename and extend tables rather than dropping them). The seed is idempotent: run it as often as you like; it never duplicates rows and never resets a password a user has already changed.
+
+### 5. Local development accounts (seed data)
+
+**These credentials exist only in your local development database. They are not real passwords and must never be reused anywhere else.**
+
+| Role | Accounts | Password | First login |
+| --- | --- | --- | --- |
+| Requester | `pim.rattanakorn@toktickit.test` | `TokTick2026!` | goes straight in |
+| Requester (carried over from Lab 2) | `jennifer.anderson@`, `michael.brown@`, `somchai.suksawat@`, `nattaya.chaiyaporn@` … `toktickit.test` | `Welcome2026!` | must choose a new password |
+| Requester (inactive) | `david.wilson@toktickit.test` | `Welcome2026!` | cannot sign in |
+| IT Staff | `arthit.wongsa@`, `siriporn.kaewmanee@`, `daniel.lee@` … `toktickit.test` | `TokTick2026!` | goes straight in |
+| IT Staff (inactive) | `ploy.srisuk@toktickit.test` | `TokTick2026!` | cannot sign in |
+| Administrator | `napat.chaiwong@`, `kanya.thongdee@` … `toktickit.test` | `TokTick2026!` | goes straight in |
+
+Passwords are stored only as scrypt hashes. Sessions are an `HttpOnly` cookie backed by the `Session` table (8-hour lifetime).
 
 ## Running the app
 
