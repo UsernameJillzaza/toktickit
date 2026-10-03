@@ -4,6 +4,8 @@ import { PrismaClient } from '../src/generated/prisma/client'
 import type { Role } from '../src/generated/prisma/client'
 import { hashPassword } from '../src/auth/password'
 import { SEED_DEMO_PASSWORD, SEED_INITIAL_PASSWORD } from './seed-credentials'
+import { SEED_TICKETS } from './seed-tickets'
+import { generateTicketNumber } from '../src/ticketNumber'
 
 // Prisma 7's client generator requires an explicit driver adapter.
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL })
@@ -93,6 +95,45 @@ async function main() {
     })
   }
   console.log(`Seeded ${RELATED_SYSTEMS.length} related systems`)
+
+  // Lab 3: sample tickets for the IT Staff queue. A ticket counts as already
+  // seeded when the same requester has a ticket with the same summary, so a
+  // rerun adds nothing (BR-41) and never touches tickets people changed.
+  const DAY_MS = 24 * 60 * 60 * 1000
+  let added = 0
+  for (const t of SEED_TICKETS) {
+    const requester = await prisma.user.findUniqueOrThrow({ where: { email: `${t.requester}@toktickit.test` } })
+    const exists = await prisma.ticket.findFirst({ where: { requesterId: requester.id, summary: t.summary } })
+    if (exists) continue
+
+    const owner = t.owner
+      ? await prisma.user.findUniqueOrThrow({ where: { email: `${t.owner}@toktickit.test` } })
+      : null
+    const category = await prisma.category.findUniqueOrThrow({ where: { name: t.category } })
+    const relatedSystem = await prisma.relatedSystem.findUniqueOrThrow({ where: { name: t.relatedSystem } })
+    const createdAt = new Date(Date.now() - t.createdDaysAgo * DAY_MS)
+    const updatedAt = new Date(Date.now() - t.updatedDaysAgo * DAY_MS)
+
+    await prisma.ticket.create({
+      data: {
+        ticketNumber: await generateTicketNumber(prisma),
+        requesterId: requester.id,
+        ownerId: owner?.id ?? null,
+        categoryId: category.id,
+        relatedSystemId: relatedSystem.id,
+        summary: t.summary,
+        description: t.description,
+        requestedPriority: t.requestedPriority,
+        itPriority: t.itPriority,
+        currentStatus: t.status,
+        requesterResolvedAt: t.requesterReportedResolved ? updatedAt : null,
+        createdAt,
+        updatedAt,
+      },
+    })
+    added++
+  }
+  console.log(`Seeded ${SEED_TICKETS.length} sample tickets (${added} new)`)
 }
 
 main()
