@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { apiFetch } from '../api'
+import { PriorityBadge, StatusBadge } from '../components/Badges'
+import Conversation from '../components/Conversation'
 
 type Attachment = {
   id: number
@@ -20,11 +22,16 @@ type TicketDetail = {
   description: string
   requestedPriority: string
   currentStatus: string
+  requesterResolvedAt: string | null
   createdAt: string
   category: { name: string }
   relatedSystem: { name: string }
+  owner: { name: string } | null
   attachments: Attachment[]
 }
+
+// BR-25: statuses where the requester may report the problem as fixed.
+const CAN_REPORT_RESOLVED = ['NEW', 'OPEN', 'IN_PROGRESS', 'WAITING_FOR_REQUESTER', 'REOPENED']
 
 type LoadState = 'loading' | 'ready' | 'not-found' | 'failure'
 
@@ -107,6 +114,17 @@ export default function RequesterTicketDetail() {
     }
   }
 
+  async function reportResolved() {
+    try {
+      const res = await apiFetch(`/api/tickets/${id}/resolved-indication`, { method: 'POST' })
+      const body = await res.json().catch(() => ({}))
+      if (res.ok) setTicket((t) => (t ? { ...t, requesterResolvedAt: body.requesterResolvedAt } : t))
+      else await load()
+    } catch {
+      // Button stays visible so the Requester can try again.
+    }
+  }
+
   if (state === 'loading') {
     return (
       <main className="container py-5">
@@ -157,20 +175,40 @@ export default function RequesterTicketDetail() {
 
         <dt className="col-sm-4">Requested Priority</dt>
         <dd className="col-sm-8">
-          <span className="badge bg-secondary">{ticket.requestedPriority}</span>
+          <PriorityBadge priority={ticket.requestedPriority} />
         </dd>
 
         <dt className="col-sm-4">Current Status</dt>
         <dd className="col-sm-8">
-          <span className="badge bg-success">{ticket.currentStatus}</span>
+          <StatusBadge status={ticket.currentStatus} />
         </dd>
+
+        <dt className="col-sm-4">Assigned to</dt>
+        <dd className="col-sm-8">{ticket.owner ? ticket.owner.name : 'Not yet assigned'}</dd>
 
         <dt className="col-sm-4">Summary</dt>
         <dd className="col-sm-8">{ticket.summary}</dd>
 
         <dt className="col-sm-4">Description</dt>
-        <dd className="col-sm-8">{ticket.description}</dd>
+        <dd className="col-sm-8 tt-pre-wrap">{ticket.description}</dd>
       </dl>
+
+      {ticket.requesterResolvedAt ? (
+        <p className="alert alert-success py-2">
+          You reported this problem as resolved on {new Date(ticket.requesterResolvedAt).toLocaleString()}.
+        </p>
+      ) : (
+        CAN_REPORT_RESOLVED.includes(ticket.currentStatus) && (
+          <div className="mb-3">
+            <button type="button" className="btn btn-outline-secondary" onClick={reportResolved}>
+              Problem Appears Resolved
+            </button>
+            <div className="form-text">
+              Let IT Staff know the problem seems fixed. IT Staff will confirm and resolve the ticket.
+            </div>
+          </div>
+        )
+      )}
 
       <hr className="my-4" />
 
@@ -261,6 +299,21 @@ export default function RequesterTicketDetail() {
         accept="image/jpeg,image/png,image/webp,application/pdf"
         onChange={handleUpload}
       />
+
+      <div className="mt-4">
+        <Conversation
+          endpoint={`/api/tickets/${ticket.id}/comments`}
+          heading="Public comments"
+          inputLabel="Add a public comment"
+          submitLabel="Post comment"
+          emptyText="No comments yet."
+          closedText={
+            ticket.currentStatus === 'CLOSED' || ticket.currentStatus === 'CANCELLED'
+              ? 'This ticket is closed. New comments are disabled.'
+              : null
+          }
+        />
+      </div>
     </main>
   )
 }

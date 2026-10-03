@@ -62,7 +62,8 @@ describe('UI-11 read-only Ticket Detail', () => {
     expect(await screen.findByText('TKT-2026-000001')).toBeInTheDocument()
     expect(screen.getByText('Laptop battery drains quickly')).toBeInTheDocument()
     expect(screen.queryByRole('textbox', { name: /summary/i })).not.toBeInTheDocument()
-    expect(screen.queryByText(/public comment/i)).not.toBeInTheDocument()
+    // Lab 3 FR-09 adds Public Comments to this screen on purpose (tests.md 7.1).
+    expect(await screen.findByRole('region', { name: /public comments/i })).toBeInTheDocument()
     expect(screen.queryByText(/internal note/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/actions taken/i)).not.toBeInTheDocument()
   })
