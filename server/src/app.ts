@@ -1,8 +1,12 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import express from 'express'
+import type { NextFunction, Request, Response } from 'express'
 import multer from 'multer'
 import { prisma } from './db'
+import { sendError } from './http'
+import { authenticate } from './auth/middleware'
+import { authRouter } from './auth/routes'
 import { generateTicketNumber } from './ticketNumber'
 import {
   sanitizeFilename,
@@ -17,6 +21,10 @@ const app = express()
 
 app.use(express.json())
 
+// Lab 3: attach req.user from the session cookie on every request (never
+// rejects on its own — see auth/middleware.ts), then the auth endpoints.
+app.use(authenticate)
+app.use('/api/auth', authRouter)
 
 // Liveness landing route.
 app.get('/', (_req, res) => {
@@ -467,6 +475,17 @@ app.post('/api/attachments/:id/remove', async (req, res) => {
     console.error(err)
     res.status(500).json({ error: 'Unable to remove attachment' })
   }
+})
+
+// Last-resort error handler (Express 5 forwards rejected async handlers here).
+// Malformed JSON is the client's fault → 400, not 500. Anything else is
+// logged server-side and answered with a safe, detail-free message.
+app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  if ((err as { type?: string }).type === 'entity.parse.failed') {
+    return sendError(res, 400, 'Malformed JSON body.', 'VALIDATION_ERROR')
+  }
+  console.error(err)
+  return sendError(res, 500, 'Unexpected server error.', 'SERVER_ERROR')
 })
 
 export default app
