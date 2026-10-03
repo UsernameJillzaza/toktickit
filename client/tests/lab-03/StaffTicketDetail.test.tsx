@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { StrictMode } from 'react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import StaffTicketDetail from '../../src/staff/StaffTicketDetail'
 import { AuthProvider } from '../../src/auth/AuthContext'
@@ -251,6 +252,49 @@ describe('UI-21 public comments vs internal notes', () => {
 
     const posts = fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST').map(([u]) => u)
     expect(posts).toEqual(['/api/staff/tickets/12/notes'])
+  })
+})
+
+// Regression found by E2E-05: React StrictMode (dev) mounts twice, so the
+// ticket is fetched twice. When the second, identical response arrived after
+// the user had picked a status, the controls were reset and Save was
+// disabled. A refetch of an unchanged ticket must keep the user's choice.
+describe('refetch of an unchanged ticket', () => {
+  it('keeps the status the user just picked', async () => {
+    let releaseSecond!: () => void
+    let ticketCalls = 0
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === '/api/staff/assignees') return jsonResponse(200, ASSIGNEES)
+      if (url === '/api/tickets/12/comments' || url === '/api/staff/tickets/12/notes') return jsonResponse(200, [])
+      if (init?.method === 'PUT') return jsonResponse(200, detail({ currentStatus: 'IN_PROGRESS', updatedAt: '2026-10-02T00:00:00.000Z' }))
+      if (url === '/api/staff/tickets/12') {
+        ticketCalls++
+        if (ticketCalls === 2) await new Promise<void>((r) => (releaseSecond = r))
+        return jsonResponse(200, detail({ owner: { id: 8, name: 'Arthit Wongsa', role: 'IT_STAFF', isActive: true } }))
+      }
+      return jsonResponse(404, {})
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    render(
+      <StrictMode>
+        <MemoryRouter initialEntries={['/staff/tickets/12']}>
+          <AuthProvider initialUser={ME}>
+            <Routes>
+              <Route path="/staff/tickets/:id" element={<StaffTicketDetail />} />
+            </Routes>
+          </AuthProvider>
+        </MemoryRouter>
+      </StrictMode>,
+    )
+    const ops = await screen.findByRole('region', { name: 'Operations' })
+    await waitFor(() => expect(ticketCalls).toBe(2))
+    await userEvent.selectOptions(within(ops).getByLabelText('Change status'), 'IN_PROGRESS')
+    releaseSecond()
+    await waitFor(() => expect(fetchMock.mock.calls.filter(([u]) => u === '/api/staff/tickets/12')).toHaveLength(2))
+    await new Promise((r) => setTimeout(r, 50))
+
+    expect(within(ops).getByLabelText('Change status')).toHaveValue('IN_PROGRESS')
+    expect(within(ops).getByRole('button', { name: 'Save status' })).toBeEnabled()
   })
 })
 
