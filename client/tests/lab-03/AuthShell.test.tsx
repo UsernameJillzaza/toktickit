@@ -73,6 +73,21 @@ describe('UI-10 role navigation', () => {
     expect(within(nav).queryByRole('link', { name: 'Create Ticket' })).not.toBeInTheDocument()
   })
 
+  it('Administrator sees Ticket Queue and User Management; IT Staff never sees User Management', async () => {
+    stubApi(userOf('ADMIN'))
+    const { unmount } = renderAt('/')
+    const nav = await screen.findByRole('navigation')
+    await within(nav).findByText('Administrator')
+    expect(within(nav).getByRole('link', { name: 'Ticket Queue' })).toBeInTheDocument()
+    expect(within(nav).getByRole('link', { name: 'User Management' })).toBeInTheDocument()
+    unmount()
+
+    stubApi(userOf('IT_STAFF'))
+    renderAt('/admin/users')
+    expect(await screen.findByRole('heading', { name: /you don't have access to this page/i })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'User Management' })).not.toBeInTheDocument()
+  })
+
   it('marks the current page with aria-current', async () => {
     stubApi(userOf('REQUESTER'))
     renderAt('/my-tickets')
