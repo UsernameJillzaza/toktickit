@@ -124,7 +124,7 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | UI-01 | UI | AC-38 | Login ช่องว่าง | error ใต้ field, ไม่ยิง API | client/tests/lab-03/Login.test.tsx | Pass |
 | UI-02 | UI | §8.1 | Login busy state | ปุ่ม "Signing in…" disabled ระหว่างรอ | client/tests/lab-03/Login.test.tsx | Pass |
-| UI-03 | UI | AC-05, D-14 | `401` | alert ข้อความ generic, คง email, ล้าง password | client/tests/lab-03/Login.test.tsx | Pass |
+| UI-03 | UI | AC-05, D-14 | `401` | alert ข้อความ generic, คง email, ล้าง password, focus กลับไปที่ช่อง password | client/tests/lab-03/Login.test.tsx | Pass |
 | UI-04 | UI | AC-06 | `403 ACCOUNT_INACTIVE` | alert ข้อความ inactive | client/tests/lab-03/Login.test.tsx | Pass |
 | UI-05 | UI | AC-38 | network error | ข้อความ safe failure, คง email | client/tests/lab-03/Login.test.tsx | Pass |
 | UI-06 | UI | AC-08 | change password: policy ผิดฝั่ง client | error ใต้ New password ไม่ยิง API | client/tests/lab-03/ChangePassword.test.tsx | Pass |
@@ -213,12 +213,12 @@ cd ..; npx playwright test
 
 ## 6. Final Results
 
-รันครบทั้งสามชุดบน branch สุดท้ายของสาย (`feature/l3-10-docs`, local, 2026-10-04) บนฐานข้อมูลที่ migrate + seed แล้ว:
+รันครบทั้งสามชุดบน branch สุดท้ายของสาย (`feature/46-docs`, local, 2026-10-04) บนฐานข้อมูลที่ migrate + seed แล้ว:
 
 | ชุด | ผล | ครอบคลุม |
 | --- | --- | --- |
 | Server (Vitest + Supertest) | 17 files, **260 passed**, 0 failed · `tsc --noEmit` clean | UNIT-01..04, API-01..40, MIG-01..03, REG-01 |
-| Client (Vitest + Testing Library) | 11 files, **89 passed**, 0 failed · `tsc -b` clean · `oxlint` 0 errors | UI-01..30, STYLE-01, REG-02 |
+| Client (Vitest + Testing Library) | 11 files, **90 passed**, 0 failed · `tsc -b` clean · `oxlint` 0 errors | UI-01..30, STYLE-01, REG-02 |
 | E2E (Playwright, Edge) | **19 passed**, 0 failed (~35 s) | E2E-01..08, RESP-01, REG-03 |
 
 ทุก Test ID ที่วางแผนไว้ (90 รายการ) มีอยู่จริงในไฟล์เทสต์ — ตรวจด้วยการค้นหา ID ทุกตัวในโฟลเดอร์เทสต์ (REG-01 / REG-02 อ้างทั้งโฟลเดอร์ `lab-02/` ตามที่ระบุในตาราง จึงไม่ได้ติด ID ในไฟล์)
