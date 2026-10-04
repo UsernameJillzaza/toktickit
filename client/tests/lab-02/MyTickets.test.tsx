@@ -3,9 +3,18 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import MyTickets from '../../src/tickets/MyTickets'
-import { RequesterProvider } from '../../src/requester/RequesterContext'
+import { AuthProvider } from '../../src/auth/AuthContext'
+import type { AuthUser } from '../../src/auth/AuthContext'
 
-const REQUESTER = { id: 1, name: 'Jennifer Anderson', email: 'jennifer.anderson@toktickit.test' }
+// Lab 3 (L3-3): the screen reads the signed-in user from AuthProvider
+// instead of the retired Development Requester selector.
+const REQUESTER: AuthUser = {
+  id: 1,
+  name: 'Jennifer Anderson',
+  email: 'jennifer.anderson@toktickit.test',
+  role: 'REQUESTER',
+  mustChangePassword: false,
+}
 
 const ONE_TICKET = [
   {
@@ -29,19 +38,18 @@ function mockFetch(respond: (url: string) => { items: unknown[]; total: number }
   )
 }
 
-function renderMyTickets() {
+function renderMyTickets(user: AuthUser = REQUESTER) {
   return render(
     <MemoryRouter>
-      <RequesterProvider>
+      <AuthProvider initialUser={user}>
         <MyTickets />
-      </RequesterProvider>
+      </AuthProvider>
     </MemoryRouter>,
   )
 }
 
 beforeEach(() => {
   vi.restoreAllMocks()
-  window.localStorage.setItem('toktickit.selectedRequester', JSON.stringify(REQUESTER))
 })
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -103,9 +111,9 @@ describe('UI-10 pagination', () => {
 })
 
 // E2E-04 stand-in (no Playwright yet, same caveat as earlier Lab 2 Issues):
-// switching requester changes which tickets are requested/shown.
+// switching signed-in user changes which tickets are requested/shown.
 describe('E2E-04 stand-in: switching requester re-queries with the new id', () => {
-  it('requests tickets scoped to whichever requester is currently selected', async () => {
+  it('requests tickets scoped to whichever user is signed in', async () => {
     const requestedIds: string[] = []
     vi.stubGlobal(
       'fetch',
@@ -120,14 +128,10 @@ describe('E2E-04 stand-in: switching requester re-queries with the new id', () =
     await waitFor(() => expect(requestedIds).toContain('1'))
     unmount()
 
-    window.localStorage.setItem(
-      'toktickit.selectedRequester',
-      JSON.stringify({ id: 2, name: 'Michael Brown', email: 'michael.brown@toktickit.test' }),
-    )
-    // A fresh mount is the honest way to simulate "switched requester, then
-    // loaded My Tickets again" — RequesterProvider only reads localStorage
-    // once, on mount, not on every render.
-    renderMyTickets()
+    // A fresh mount as a different signed-in user stands in for "logged out,
+    // logged back in as Michael". L3-4 retires this stand-in: once the server
+    // reads identity from the session, the client no longer sends an id at all.
+    renderMyTickets({ ...REQUESTER, id: 2, name: 'Michael Brown', email: 'michael.brown@toktickit.test' })
 
     await waitFor(() => expect(requestedIds).toContain('2'))
   })

@@ -215,4 +215,14 @@ _(อัปเดตใน L3-10 หลังรันบน branch สุดท
 
 ## 7. Known Limitations or Deferred Tests
 
-_(อัปเดตใน L3-10)_
+### 7.1 Lab 2 tests retired (ไม่ใช่ลบทิ้งเงียบ ๆ — บันทึกเหตุผลไว้ที่นี่)
+
+| Lab 2 test file | Retired in | เหตุผล | พฤติกรรมเดิมถูกคุมโดย |
+| --- | --- | --- | --- |
+| `client/tests/lab-02/RequesterContext.test.tsx` | L3-3 | ทดสอบ `RequesterContext` (เลือก/จำ requester ใน localStorage) ซึ่งถูกลบออกตาม BR-41 — identity มาจาก session เท่านั้น | AuthShell: UI-11 และเทสต์ BR-42 (ล้าง key เก่าใน localStorage) |
+| `client/tests/lab-02/RequesterSelect.test.tsx` | L3-3 | หน้า Requester Selection ไม่มีอีกแล้ว (BR-41) | Login: UI-01..UI-05 |
+| `client/tests/lab-02/AppShell.test.tsx` | L3-3 | ทดสอบ guard "ยังไม่เลือก requester" และปุ่ม Change Requester | AuthShell: UI-10, UI-11, UI-14 |
+
+ส่วน stand-in "E2E-04: switching requester" ใน `MyTickets.test.tsx` ยังเก็บไว้ใน L3-3 (เปลี่ยนเป็น mount ใหม่ด้วย user อีกคน) และจะ retire ใน L3-4 เมื่อ client เลิกส่ง `requesterId`
+
+_(ส่วนที่เหลืออัปเดตใน L3-10)_
