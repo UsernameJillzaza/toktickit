@@ -213,7 +213,7 @@ Index: `User.role`, `Session.userId`, `Ticket.ownerId`, `Ticket.currentStatus`, 
 
 ทั้ง 3 ไม่ลบหรือเขียนทับแถวเดิม — `Ticket.requesterId` ชี้แถวเดิมเพราะ rename ตารางไม่เปลี่ยน primary key
 
-**Seed** (idempotent): Requester active 5 คน (4 จาก Lab 2 + 1 ใหม่ที่ต้องเปลี่ยนรหัส) + inactive 1, IT Staff active 3 + inactive 1, Administrator active 2; Ticket ตัวอย่าง ≥ 20 ใบกระจาย Requester / status / priority / มี-ไม่มี owner; Public Comment และ Internal Note ตัวอย่างที่ไม่มีข้อมูลอ่อนไหว
+**Seed** (idempotent): Requester active 5 คน (4 จาก Lab 2 ที่ต้องเปลี่ยนรหัสตาม BR-40 + 1 คนใหม่ที่พร้อมใช้ทันที เพื่อให้ E2E และการทดสอบด้วยมือมี Requester ที่ login ได้เลย) + inactive 1 (จาก Lab 2), IT Staff active 3 + inactive 1, Administrator active 2; Ticket ตัวอย่าง ≥ 20 ใบกระจาย Requester / status / priority / มี-ไม่มี owner; Public Comment และ Internal Note ตัวอย่างที่ไม่มีข้อมูลอ่อนไหว
 
 ## 8. API Contract
 

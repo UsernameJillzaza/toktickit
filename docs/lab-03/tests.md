@@ -53,7 +53,7 @@
 | MIG-01 | Migration | AC-11, BR-39 | หลัง migrate: ตาราง `DevRequester` ไม่มีแล้ว, Ticket ทุกใบมี requester role `REQUESTER`, email Lab 2 ทั้ง 5 เป็น `User` | ครบทุกข้อ | server/tests/lab-03/migration.api.test.ts | Planned |
 | MIG-02 | Migration | AC-11, BR-40 | Requester ที่ migrate มา login ด้วย initial password ที่ seed กำหนด | `200` + `mustChangePassword: true` (ถ้ายังไม่เคยเปลี่ยน) | server/tests/lab-03/migration.api.test.ts | Planned |
 | MIG-03 | Migration | BR-21, D-09 | Ticket ทุกใบมี `itPriority` (backfill) และ status เป็น enum ที่ถูกต้อง | ไม่มีค่า null / ค่าแปลก | server/tests/lab-03/migration.api.test.ts | Planned |
-| REG-01 | Regression | AC-12, BR-45 | ชุดเทสต์ server ของ Lab 2 ทั้ง 7 ไฟล์ รันแบบ login จริง | เขียวทั้งหมด | server/tests/lab-02/*.test.ts | Planned |
+| REG-01 | Regression | AC-12, BR-45 | ชุดเทสต์ server ของ Lab 2 (6 ไฟล์ที่เหลือหลัง retire `requesters.api.test.ts` — ดู §7.1) รันแบบ login จริง | เขียวทั้งหมด | server/tests/lab-02/*.test.ts | Planned |
 | REG-02 | Regression | AC-12 | ชุดเทสต์ client ของ Lab 2 รันกับ AuthContext | เขียวทั้งหมด | client/tests/lab-02/*.test.tsx | Planned |
 
 ### IT Staff Queue
@@ -135,6 +135,7 @@
 | UI-12 | UI | AC-02 | `mustChangePassword` เปิด `/my-tickets` | redirect ไป `/change-password` | client/tests/lab-03/AuthShell.test.tsx | Planned |
 | UI-13 | UI | AC-10, AC-35 | Requester เปิด `/admin/users` | หน้า Forbidden | client/tests/lab-03/AuthShell.test.tsx | Planned |
 | UI-14 | UI | AC-07 | กด Log out | ยิง logout แล้วไปหน้า Login | client/tests/lab-03/AuthShell.test.tsx | Planned |
+| UI-30 | UI | BR-11, BR-13 | session หมด/ถูกปิดระหว่างใช้งาน: API ของหน้าตอบ `401` | กลับไปหน้า Login อัตโนมัติ (ผ่าน `apiFetch`) | client/tests/lab-03/AuthShell.test.tsx | Planned |
 
 ### E2E (Playwright, server + client + DB จริง)
 
@@ -219,10 +220,13 @@ _(อัปเดตใน L3-10 หลังรันบน branch สุดท
 
 | Lab 2 test file | Retired in | เหตุผล | พฤติกรรมเดิมถูกคุมโดย |
 | --- | --- | --- | --- |
-| `client/tests/lab-02/RequesterContext.test.tsx` | L3-3 | ทดสอบ `RequesterContext` (เลือก/จำ requester ใน localStorage) ซึ่งถูกลบออกตาม BR-41 — identity มาจาก session เท่านั้น | AuthShell: UI-11 และเทสต์ BR-42 (ล้าง key เก่าใน localStorage) |
-| `client/tests/lab-02/RequesterSelect.test.tsx` | L3-3 | หน้า Requester Selection ไม่มีอีกแล้ว (BR-41) | Login: UI-01..UI-05 |
+| `client/tests/lab-02/RequesterContext.test.tsx` | L3-3 | ทดสอบ `RequesterContext` (เลือก/จำ requester ใน localStorage) ซึ่งถูกลบออกตาม BR-42 / FR-08 — identity มาจาก session เท่านั้น | AuthShell: UI-11 และเทสต์ BR-42 (ล้าง key เก่าใน localStorage) |
+| `client/tests/lab-02/RequesterSelect.test.tsx` | L3-3 | หน้า Requester Selection ไม่มีอีกแล้ว (BR-42 / FR-08) | Login: UI-01..UI-05 |
 | `client/tests/lab-02/AppShell.test.tsx` | L3-3 | ทดสอบ guard "ยังไม่เลือก requester" และปุ่ม Change Requester | AuthShell: UI-10, UI-11, UI-14 |
+| `server/tests/lab-02/requesters.api.test.ts` | L3-4 | ทดสอบ `GET /api/requesters` ซึ่งถูกลบตาม BR-42 | API-14 (ยืนยันว่าได้ `404`) |
 
-ส่วน stand-in "E2E-04: switching requester" ใน `MyTickets.test.tsx` ยังเก็บไว้ใน L3-3 (เปลี่ยนเป็น mount ใหม่ด้วย user อีกคน) และจะ retire ใน L3-4 เมื่อ client เลิกส่ง `requesterId`
+stand-in "E2E-04: switching requester" ใน `MyTickets.test.tsx` ถูกแทนที่ใน L3-4 ด้วยเทสต์ BR-03 "My Tickets request carries no requesterId" — การสลับ requester ไม่มีอยู่แล้ว สิ่งที่ต้องพิสูจน์แทนคือ client ไม่ระบุตัวตนเองเลย
+
+เทสต์ server ของ Lab 2 ที่เหลือ 6 ไฟล์ (REG-01) รันแบบ login จริงผ่าน `loginAgent` — assertion เดิมทั้งหมดคงไว้ ยกเว้นสองกรณีที่ความหมายเปลี่ยนตาม Lab 3: "ไม่ส่ง requesterId → 400" กลายเป็น "ไม่มี session → 401" และ "requester inactive สร้าง Ticket → 404" กลายเป็น "requester ถูก deactivate แล้ว session เดิม → 401"
 
 _(ส่วนที่เหลืออัปเดตใน L3-10)_

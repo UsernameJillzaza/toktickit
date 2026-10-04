@@ -110,29 +110,23 @@ describe('UI-10 pagination', () => {
   })
 })
 
-// E2E-04 stand-in (no Playwright yet, same caveat as earlier Lab 2 Issues):
-// switching signed-in user changes which tickets are requested/shown.
-describe('E2E-04 stand-in: switching requester re-queries with the new id', () => {
-  it('requests tickets scoped to whichever user is signed in', async () => {
-    const requestedIds: string[] = []
+// E2E-04 stand-in retired in L3-4: switching requester no longer exists.
+// What replaces it is BR-03 — the client never names a requester at all;
+// the server scopes My Tickets by the session cookie.
+describe('BR-03: My Tickets request carries no requesterId', () => {
+  it('asks for tickets without any requester parameter', async () => {
+    const urls: string[] = []
     vi.stubGlobal(
       'fetch',
       vi.fn(async (url: string) => {
-        const params = new URLSearchParams(url.split('?')[1])
-        requestedIds.push(params.get('requesterId') ?? '')
+        urls.push(url)
         return { ok: true, status: 200, json: async () => ({ items: [], total: 0, page: 1, pageSize: 10 }) }
       }),
     )
 
-    const { unmount } = renderMyTickets()
-    await waitFor(() => expect(requestedIds).toContain('1'))
-    unmount()
+    renderMyTickets()
 
-    // A fresh mount as a different signed-in user stands in for "logged out,
-    // logged back in as Michael". L3-4 retires this stand-in: once the server
-    // reads identity from the session, the client no longer sends an id at all.
-    renderMyTickets({ ...REQUESTER, id: 2, name: 'Michael Brown', email: 'michael.brown@toktickit.test' })
-
-    await waitFor(() => expect(requestedIds).toContain('2'))
+    await waitFor(() => expect(urls.some((u) => u.startsWith('/api/tickets'))).toBe(true))
+    expect(urls.every((u) => !u.includes('requesterId'))).toBe(true)
   })
 })

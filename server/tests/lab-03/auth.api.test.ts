@@ -147,10 +147,22 @@ describe('API-05 logout', () => {
   })
 })
 
-// API-06 part 1 (AC-02, BR-02): a user with an initial password can sign in,
-// see who they are, and change the password — the 403 on every other API is
-// asserted in L3-4 once the ticket endpoints require authentication.
-describe('API-06 initial password (auth endpoints)', () => {
+// API-06 (AC-02, BR-02): a user with an initial password can sign in, see
+// who they are and change the password, but every other API answers 403
+// PASSWORD_CHANGE_REQUIRED until they do.
+describe('API-06 initial password', () => {
+  it('blocks My Tickets with 403 PASSWORD_CHANGE_REQUIRED until the password is changed', async () => {
+    const user = await createTestUser({ mustChangePassword: true })
+    const agent = await loginAgent(user)
+
+    const blocked = await agent.get('/api/tickets')
+    expect(blocked.status).toBe(403)
+    expect(blocked.body.code).toBe('PASSWORD_CHANGE_REQUIRED')
+
+    await agent.post('/api/auth/change-password').send({ currentPassword: TEST_PASSWORD, newPassword: 'Brandnew456' })
+    expect((await agent.get('/api/tickets')).status).toBe(200)
+  })
+
   it('signs in with mustChangePassword true, then clears it after a valid change', async () => {
     const user = await createTestUser({ mustChangePassword: true })
     const agent = await loginAgent(user)
