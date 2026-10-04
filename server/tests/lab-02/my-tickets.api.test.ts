@@ -31,7 +31,7 @@ async function createTicket(requesterId: number, summary: string) {
 }
 
 beforeAll(async () => {
-  const requesters = await prisma.devRequester.findMany({ where: { isActive: true }, take: 2 })
+  const requesters = await prisma.user.findMany({ where: { isActive: true, role: 'REQUESTER' }, take: 2 })
   requesterA = requesters[0]
   requesterB = requesters[1]
   categoryId = (await prisma.category.findFirstOrThrow()).id

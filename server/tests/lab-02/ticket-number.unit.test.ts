@@ -22,7 +22,7 @@ afterAll(async () => {
 
 describe('generateTicketNumber', () => {
   it('returns the TKT-YYYY-NNNNNN format and stays unique across 10 real inserts', async () => {
-    const requester = await prisma.devRequester.findFirstOrThrow({ where: { isActive: true } })
+    const requester = await prisma.user.findFirstOrThrow({ where: { isActive: true, role: 'REQUESTER' } })
     const category = await prisma.category.findFirstOrThrow()
     const relatedSystem = await prisma.relatedSystem.findFirstOrThrow()
 

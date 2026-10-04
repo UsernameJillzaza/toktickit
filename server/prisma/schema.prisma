@@ -20,15 +20,43 @@ model Category {
   tickets   Ticket[]
 }
 
-// Lab 2 §5, Issue #14: a temporary testing identity, not real authentication
-// (spec BR-03). Deliberately not named `User` — see specification.md D-02.
-model DevRequester {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  isActive  Boolean  @default(true)
+// Lab 3 §5.1: one permitted role per user (BR-14).
+enum Role {
+  REQUESTER
+  IT_STAFF
+  ADMIN
+}
+
+// Lab 3 §5.2: the Lab 2 `DevRequester` table renamed and extended in place
+// (migration add_user_auth) — same ids, so every Ticket.requesterId still
+// points at the same person (BR-39). passwordHash is null until a password is
+// issued (seed for migrated requesters, admin for new users) — BR-40.
+model User {
+  id                 Int       @id @default(autoincrement())
+  name               String
+  email              String    @unique // stored trimmed + lowercased (BR-06)
+  role               Role      @default(REQUESTER)
+  passwordHash       String? // scrypt$N$r$p$salt$key — never plaintext (BR-09)
+  mustChangePassword Boolean   @default(true)
+  isActive           Boolean   @default(true)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  tickets            Ticket[]
+  sessions           Session[]
+
+  @@index([role])
+}
+
+// Lab 3 §6.1, D-01/D-03: server-side session. `id` is the SHA-256 of the
+// random token held in the httpOnly cookie, never the token itself.
+model Session {
+  id        String   @id
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
-  tickets   Ticket[]
+  expiresAt DateTime
+
+  @@index([userId])
 }
 
 // Lab 2 §5.3, Issue #15: the specific service/app/device/platform a Ticket
@@ -46,7 +74,7 @@ model Ticket {
   id                Int           @id @default(autoincrement())
   ticketNumber      String        @unique
   requesterId       Int
-  requester         DevRequester  @relation(fields: [requesterId], references: [id])
+  requester         User          @relation(fields: [requesterId], references: [id])
   categoryId        Int
   category          Category      @relation(fields: [categoryId], references: [id])
   relatedSystemId   Int

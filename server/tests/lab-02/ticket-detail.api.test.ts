@@ -37,7 +37,7 @@ async function createTicketFor(requesterId: number) {
 
 describe('GET /api/tickets/:id', () => {
   it('returns the ticket with category/relatedSystem names and attachments array', async () => {
-    const [requesterA] = await prisma.devRequester.findMany({ where: { isActive: true }, take: 1 })
+    const [requesterA] = await prisma.user.findMany({ where: { isActive: true, role: 'REQUESTER' }, take: 1 })
     const ticket = await createTicketFor(requesterA.id)
 
     const res = await request(app).get(`/api/tickets/${ticket.id}`).query({ requesterId: requesterA.id })
@@ -51,8 +51,8 @@ describe('GET /api/tickets/:id', () => {
 
   // API-15 (AC-03, BR-07): another requester's ticket is a 404, same as not found.
   it('returns 404 when the ticket belongs to a different requester', async () => {
-    const [requesterA, requesterB] = await prisma.devRequester.findMany({
-      where: { isActive: true },
+    const [requesterA, requesterB] = await prisma.user.findMany({
+      where: { isActive: true, role: 'REQUESTER' },
       take: 2,
     })
     const ticket = await createTicketFor(requesterA.id)
@@ -63,7 +63,7 @@ describe('GET /api/tickets/:id', () => {
   })
 
   it('returns 404 for a ticket id that does not exist at all', async () => {
-    const [requesterA] = await prisma.devRequester.findMany({ where: { isActive: true }, take: 1 })
+    const [requesterA] = await prisma.user.findMany({ where: { isActive: true, role: 'REQUESTER' }, take: 1 })
     const res = await request(app).get('/api/tickets/999999999').query({ requesterId: requesterA.id })
     expect(res.status).toBe(404)
   })

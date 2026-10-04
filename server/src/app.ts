@@ -1,10 +1,12 @@
-import 'dotenv/config'
 import fs from 'node:fs'
 import path from 'node:path'
 import express from 'express'
+import type { NextFunction, Request, Response } from 'express'
 import multer from 'multer'
-import { PrismaPg } from '@prisma/adapter-pg'
-import { PrismaClient } from './generated/prisma/client'
+import { prisma } from './db'
+import { sendError } from './http'
+import { authenticate } from './auth/middleware'
+import { authRouter } from './auth/routes'
 import { generateTicketNumber } from './ticketNumber'
 import {
   sanitizeFilename,
@@ -15,12 +17,14 @@ import {
 
 // The Express app is defined here and exported WITHOUT calling listen(),
 // so tests (Supertest) can import it directly. server.ts owns listen().
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL })
-const prisma = new PrismaClient({ adapter })
-
 const app = express()
 
 app.use(express.json())
+
+// Lab 3: attach req.user from the session cookie on every request (never
+// rejects on its own — see auth/middleware.ts), then the auth endpoints.
+app.use(authenticate)
+app.use('/api/auth', authRouter)
 
 // Liveness landing route.
 app.get('/', (_req, res) => {
@@ -48,10 +52,12 @@ app.get('/api/categories', async (_req, res) => {
 
 // GET /api/requesters — active Development Requesters only (Lab 2 §5.3, BR-05).
 // This selector is a testing mechanism, not authentication (BR-03).
+// Lab 3 L3-2: DevRequester is now User; the selector keeps working against
+// REQUESTER users until L3-4 removes it (spec BR-42).
 app.get('/api/requesters', async (_req, res) => {
   try {
-    const requesters = await prisma.devRequester.findMany({
-      where: { isActive: true },
+    const requesters = await prisma.user.findMany({
+      where: { isActive: true, role: 'REQUESTER' },
       orderBy: { name: 'asc' },
       select: { id: true, name: true, email: true },
     })
@@ -127,8 +133,8 @@ app.post('/api/tickets', async (req, res) => {
     }
 
   try {
-    const requester = await prisma.devRequester.findUnique({ where: { id: requesterId } })
-    if (!requester || !requester.isActive) {
+    const requester = await prisma.user.findUnique({ where: { id: requesterId } })
+    if (!requester || !requester.isActive || requester.role !== 'REQUESTER') {
       return res.status(404).json({ error: 'Requester not found' })
     }
     const category = await prisma.category.findUnique({ where: { id: categoryId } })
@@ -469,6 +475,17 @@ app.post('/api/attachments/:id/remove', async (req, res) => {
     console.error(err)
     res.status(500).json({ error: 'Unable to remove attachment' })
   }
+})
+
+// Last-resort error handler (Express 5 forwards rejected async handlers here).
+// Malformed JSON is the client's fault → 400, not 500. Anything else is
+// logged server-side and answered with a safe, detail-free message.
+app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  if ((err as { type?: string }).type === 'entity.parse.failed') {
+    return sendError(res, 400, 'Malformed JSON body.', 'VALIDATION_ERROR')
+  }
+  console.error(err)
+  return sendError(res, 500, 'Unexpected server error.', 'SERVER_ERROR')
 })
 
 export default app
