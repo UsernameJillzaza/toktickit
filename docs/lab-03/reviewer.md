@@ -1,6 +1,6 @@
 # Lab 3 — Peer Review
 
-> **Status: in review.** PRs #47–#56 (L3-1 … L3-10) were reviewed and approved by Jakkarin and merged into `lab3-staging` with merge commits on 2026-10-04. Only the release PR row is still `TODO`, because that PR doesn't exist yet. Nothing in that row may be written from memory or invented.
+> **Status: in review.** PRs #47–#57 (L3-1 … L3-10 plus a docs follow-up) were reviewed and approved by Jakkarin and merged into `lab3-staging` with merge commits on 2026-10-04. Only the release PR row is still `TODO`, because that PR doesn't exist yet. Nothing in that row may be written from memory or invented.
 
 ## My reviewer
 
@@ -24,6 +24,7 @@
 | #44 | [#54](https://github.com/UsernameJillzaza/toktickit/pull/54) | Administrator user management with last-admin safety | Approved by @jakkarin-promsee; merged |
 | #45 | [#55](https://github.com/UsernameJillzaza/toktickit/pull/55) | Lab 3 Playwright suite, responsive checks, and screenshot evidence | Approved by @jakkarin-promsee; merged |
 | #46 | [#56](https://github.com/UsernameJillzaza/toktickit/pull/56) | Lab 3 documentation | Approved by @jakkarin-promsee; merged |
+| — | [#57](https://github.com/UsernameJillzaza/toktickit/pull/57) | Docs follow-up: record open review findings before the Lab 3 release (no Issue) | Approved by @jakkarin-promsee; merged |
 | — | TODO | Release: `lab3-staging` → `main` | TODO |
 
 ### Review comment I received and how I responded ([PR #53](https://github.com/UsernameJillzaza/toktickit/pull/53))
