@@ -1,6 +1,6 @@
 # Lab 3 — Peer Review
 
-> **Status: in review.** PRs #47–#57 (L3-1 … L3-10 plus a docs follow-up) were reviewed and approved by Jakkarin and merged into `lab3-staging` with merge commits on 2026-10-04. Only the release PR row is still `TODO`, because that PR doesn't exist yet. Nothing in that row may be written from memory or invented.
+> **Status: complete.** PRs #47–#58 (L3-1 … L3-10 plus two documentation follow-ups) were reviewed and approved by Jakkarin and merged into `lab3-staging` with merge commits on 2026-10-04, and the release PR #59 (`lab3-staging` → `main`) was approved and merged the same day. The one documentation-only PR that records this final state (#60) is not listed in the table, because a record cannot list the PR that adds it with its final verdict.
 
 ## My reviewer
 
@@ -25,7 +25,8 @@
 | #45 | [#55](https://github.com/UsernameJillzaza/toktickit/pull/55) | Lab 3 Playwright suite, responsive checks, and screenshot evidence | Approved by @jakkarin-promsee; merged |
 | #46 | [#56](https://github.com/UsernameJillzaza/toktickit/pull/56) | Lab 3 documentation | Approved by @jakkarin-promsee; merged |
 | — | [#57](https://github.com/UsernameJillzaza/toktickit/pull/57) | Docs follow-up: record open review findings before the Lab 3 release (no Issue) | Approved by @jakkarin-promsee; merged |
-| — | TODO | Release: `lab3-staging` → `main` | TODO |
+| — | [#58](https://github.com/UsernameJillzaza/toktickit/pull/58) | Docs follow-up: record the final test run and fix review notes from #57 (no Issue) | Approved by @jakkarin-promsee; merged |
+| — | [#59](https://github.com/UsernameJillzaza/toktickit/pull/59) | Release Lab 3: users, roles, IT Staff ticketing, and admin screens (`lab3-staging` → `main`) | Approved by @jakkarin-promsee; merged |
 
 ### Review comment I received and how I responded ([PR #53](https://github.com/UsernameJillzaza/toktickit/pull/53))
 
