@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from './AuthContext'
@@ -17,6 +17,13 @@ export default function Login() {
   const [alert, setAlert] = useState<Alert | null>(null)
   const [busy, setBusy] = useState(false)
   const passwordRef = useRef<HTMLInputElement>(null)
+
+  // After a failed attempt, put the cursor back in Password. This must run
+  // after the re-render: until then the <fieldset> is still disabled, and a
+  // control inside a disabled fieldset can't take focus.
+  useEffect(() => {
+    if (alert && !busy) passwordRef.current?.focus()
+  }, [alert, busy])
 
   // Already signed in (e.g. pressed Back after logging in) — don't show the form.
   if (user && !busy) return <Navigate to={user.mustChangePassword ? '/change-password' : '/'} replace />
@@ -46,7 +53,6 @@ export default function Login() {
       tone: result.code === 'ACCOUNT_INACTIVE' ? 'warning' : 'danger',
       message: result.message,
     })
-    passwordRef.current?.focus()
   }
 
   return (

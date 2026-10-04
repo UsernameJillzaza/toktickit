@@ -73,6 +73,18 @@ describe('UI-03 invalid credentials', () => {
     expect(screen.getByLabelText(/^email/i)).toHaveValue('pim@toktickit.test')
     expect(screen.getByLabelText(/^password/i)).toHaveValue('')
   })
+
+  // The form is disabled while the request is in flight; focus must land
+  // once it's enabled again, or keyboard users are left on <body>.
+  it('moves focus to the password field so the user can retype it', async () => {
+    renderLogin(async () =>
+      jsonResponse(401, { error: 'Invalid email or password.', code: 'INVALID_CREDENTIALS' }),
+    )
+    await fillAndSubmit('pim@toktickit.test', 'Wrong1234')
+
+    await screen.findByRole('alert')
+    expect(screen.getByLabelText(/^password/i)).toHaveFocus()
+  })
 })
 
 // UI-04 (AC-06): inactive account message.
