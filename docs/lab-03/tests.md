@@ -213,7 +213,7 @@ cd ..; npx playwright test
 
 ## 6. Final Results
 
-รันครบทั้งสามชุดบน `lab3-staging` หลัง merge ครบทุก PR (commit `c724584` = merge ของ PR #57, local, 2026-10-04) บนฐานข้อมูลที่ migrate + seed แล้ว:
+รันครบทั้งสามชุดบน `main` ที่ `ab9ca55` (merge ของ release PR #59, local, 2026-10-04 ราว 17:06) บนฐานข้อมูลที่ migrate + seed แล้ว:
 
 | ชุด | ผล | ครอบคลุม |
 | --- | --- | --- |
@@ -223,7 +223,7 @@ cd ..; npx playwright test
 
 ทุก Test ID ที่วางแผนไว้ (90 รายการ) มีอยู่จริงในไฟล์เทสต์ — ตรวจด้วยการค้นหา ID ทุกตัวในโฟลเดอร์เทสต์ (REG-01 / REG-02 อ้างทั้งโฟลเดอร์ `lab-02/` ตามที่ระบุในตาราง จึงไม่ได้ติด ID ในไฟล์)
 
-> ผลข้างต้นรันบน `lab3-staging` ที่ `c724584` เมื่อ 2026-10-04 ด้วย `npx prisma migrate deploy; npx prisma db seed` แล้ว `npm test` (server), `npm test` (client), `npx playwright test` — เนื้อหาไฟล์ที่ release ไป `main` เหมือนกัน เพราะ `main` (`0e1b19f`) เป็นบรรพบุรุษของ `lab3-staging` ทั้งหมด; หลัง release จะรันซ้ำบน `main` อีกครั้งและเก็บ output เป็นหลักฐาน Part 3 ของ labsheet ถ้าตัวเลขต่างจากตารางนี้ให้แก้ย่อหน้านี้ให้ตรงกับรันนั้น
+> ผลข้างต้นรันบน `main` ที่ `ab9ca55` ด้วย `npx prisma migrate deploy; npx prisma db seed` แล้ว `npm test` (server), `npm test` (client), `npx playwright test` — ก่อนหน้านี้รันบน `lab3-staging` ที่ `c724584` ได้ตัวเลขเดียวกัน; โค้ดเดียวกัน หลังรันนั้นเปลี่ยนแค่เอกสาร (PR #58 และ merge ของ release) output ดิบของการรันบน `main` เก็บเป็นภาพหลักฐาน Part 3 (commit, server, client, E2E)
 
 **เทสต์ที่จับ bug จริงได้ระหว่างทำ:**
 
