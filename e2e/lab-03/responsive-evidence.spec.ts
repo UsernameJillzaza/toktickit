@@ -86,6 +86,48 @@ for (const screen of SCREENS) {
   })
 }
 
+// ui-spec §11: every button on mobile is at least 44px tall (touch target).
+test('RESP-01 mobile buttons are at least 44px tall', async ({ browser }) => {
+  const checks: [E2EUser, string][] = [
+    [staff, '/staff/queue'],
+    [staff, `/staff/tickets/${ticketId}`],
+    [admin, '/admin/users'],
+    [requester, `/tickets/${ticketId}`],
+  ]
+  for (const [user, path] of checks) {
+    const page = await pageAs(browser, user)
+    await page.setViewportSize({ width: 375, height: 812 })
+    await page.goto(path)
+    await expect(page.locator('main')).toBeVisible()
+    await page.waitForLoadState('networkidle')
+    const short = await page.evaluate(() =>
+      [...document.querySelectorAll('button, a.btn')]
+        .filter((el) => (el as HTMLElement).offsetParent !== null)
+        .map((el) => ({ text: (el.textContent ?? '').trim().slice(0, 30), h: Math.round(el.getBoundingClientRect().height) }))
+        .filter((b) => b.h < 44),
+    )
+    expect(short, `buttons under 44px on ${path}`).toEqual([])
+  }
+})
+
+// ui-spec §12: keyboard focus is always visible.
+test('RESP-01 keyboard focus is visible on the login form', async ({ page }) => {
+  await page.goto('/login')
+  const ring = async () =>
+    page.evaluate(() => {
+      const el = document.activeElement as HTMLElement
+      const s = getComputedStyle(el)
+      return { tag: el.tagName, visible: s.boxShadow !== 'none' || (s.outlineStyle !== 'none' && s.outlineWidth !== '0px') }
+    })
+  for (const expected of ['INPUT', 'INPUT', 'BUTTON']) {
+    await page.keyboard.press('Tab')
+    const r = await ring()
+    expect(r.tag).toBe(expected)
+    expect(r.visible, `focus ring on ${r.tag}`).toBe(true)
+  }
+  await page.screenshot({ path: shot('authentication', 'login-keyboard-focus'), fullPage: true })
+})
+
 test('RESP-01 mobile menu collapses behind the hamburger', async ({ browser }) => {
   const page = await pageAs(browser, admin)
   await page.setViewportSize({ width: 375, height: 812 })

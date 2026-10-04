@@ -142,3 +142,16 @@ body {
     width: 100%;
   }
 }
+
+/* ui-spec §11: on phones every button is a comfortable touch target (at
+   least 44px tall), including small buttons and the hamburger. Desktop keeps
+   the compact sizes. Checked by e2e RESP-01. */
+@media (max-width: 767.98px) {
+  .btn,
+  .navbar-toggler {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
