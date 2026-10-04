@@ -128,7 +128,7 @@ Indicator พิเศษ: "Requester reports resolved" — badge ขอบ prim
 - [x] editable vs read-only แยกชัด (หน้า staff detail, user management) — UI-20, UI-28, screenshot `staff-ticket-detail/detail-closed-read-only.png`, `user-management/edit-own-account.png`
 - [x] validation message อยู่ใต้ field ที่เกี่ยวข้อง — UI-01, UI-06, UI-27, screenshot `authentication/login-validation.png`, `authentication/change-password-policy-error.png`, `user-management/create-validation.png`
 - [x] Public Comment กับ Internal Note แยกกันทางสายตาชัด ไม่มีทางสับสน — UI-21, E2E-05, screenshot `staff-ticket-detail/staff-detail-*.png`
-- [x] focus มองเห็นได้ทุก control (ทดสอบด้วย Tab) — RESP-01 "keyboard focus" (Tab ผ่านฟอร์ม Login แล้วตรวจว่ามี focus ring จริง) + screenshot `authentication/login-keyboard-focus.png`; ทุกหน้าใช้ focus ring ของ Bootstrap ตัวเดียวกันและไม่มีที่ไหนปิด outline
+- [x] focus มองเห็นได้ — **ตรวจอัตโนมัติเฉพาะฟอร์ม Login:** RESP-01 "keyboard focus" (Tab ผ่านฟอร์ม Login แล้วตรวจว่ามี focus ring จริง) + screenshot `authentication/login-keyboard-focus.png` หน้าอื่น (คิว, Staff Ticket Detail, User Management ฯลฯ) **ไม่ได้ตรวจด้วยเทสต์** — อาศัยว่าใช้ focus ring ของ Bootstrap ตัวเดียวกันและไม่มีกฎ CSS ไหนปิด outline ซึ่งเป็นข้อโต้แย้ง ไม่ใช่หลักฐาน (ตรงกับ `tests.md` §7.2 "Focus ring")
 - [x] ไม่มี clipping / overlap / horizontal overflow ที่ desktop / tablet / mobile — RESP-01 วัด `scrollWidth ≤ clientWidth` 6 หน้าจอ × 3 ขนาด และวัดว่าปุ่มบน mobile ≥ 44px
 - [x] dialog ยืนยัน status แสดงถูกต้องและ Cancel ไม่ยิง request — UI-19, E2E-05, screenshot `staff-ticket-detail/confirm-resolve.png`
 
