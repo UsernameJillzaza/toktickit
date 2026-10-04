@@ -41,8 +41,14 @@ const REQUESTER_ONLY: Call[] = [
   { method: 'post', path: () => `/api/attachments/${attachmentOfB.id}/remove`, label: 'POST /api/attachments/:id/remove' },
 ]
 
+// Section 5.1 rows 'Queue, staff Ticket Detail, assignee list' onwards.
+const STAFF_ONLY: Call[] = [
+  { method: 'get', path: () => '/api/staff/tickets', label: 'GET /api/staff/tickets' },
+]
+
 const PROTECTED: Call[] = [
   ...REQUESTER_ONLY,
+  ...STAFF_ONLY,
   { method: 'get', path: () => `/api/attachments/${attachmentOfB.id}`, label: 'GET /api/attachments/:id' },
   { method: 'get', path: () => `/api/attachments/${attachmentOfB.id}/download`, label: 'GET /api/attachments/:id/download' },
   { method: 'get', path: () => '/api/auth/me', label: 'GET /api/auth/me' },
@@ -81,13 +87,24 @@ describe('API-11 wrong role', () => {
   }
 })
 
+// API-11 (AC-10, BR-15): Requesters can't reach IT Staff endpoints.
+describe('API-11 requester on staff endpoints', () => {
+  it.each(STAFF_ONLY.map((c) => [c.label, c] as const))('REQUESTER: %s → 403 FORBIDDEN', async (_label, call) => {
+    const res = await requesterA.agent[call.method](call.path()).send({})
+    expect(res.status).toBe(403)
+    expect(res.body.code).toBe('FORBIDDEN')
+  })
+})
+
 // API-12 (AC-03, BR-03): requesterId from the client is ignored.
 describe('API-12 requesterId is ignored', () => {
   it('lists only the signed-in requester’s tickets even when another id is sent', async () => {
     const res = await requesterA.agent.get(`/api/tickets?requesterId=${requesterB.user.id}`)
     expect(res.status).toBe(200)
-    expect(res.body.items.map((t: { id: number }) => t.id)).not.toContain(ticketOfB.id)
-    expect(res.body.items.every((t: { requesterId: number }) => t.requesterId === requesterA.user.id)).toBe(true)
+    const ids: number[] = res.body.items.map((t: { id: number }) => t.id)
+    expect(ids).not.toContain(ticketOfB.id)
+    const owners = await prisma.ticket.findMany({ where: { id: { in: ids } }, select: { requesterId: true } })
+    expect(owners.every((t) => t.requesterId === requesterA.user.id)).toBe(true)
   })
 
   it('creates the ticket for the signed-in requester, not the requesterId in the body', async () => {
@@ -155,6 +172,38 @@ describe('5.1 staff attachment access', () => {
     expect(meta.status).toBe(200)
     expect(meta.body.isRemoved).toBe(true)
     expect((await staff.agent.get(`/api/attachments/${att.id}/download`)).status).toBe(404)
+  })
+})
+
+// API-40 (BR-21, api-spec "Requester Tickets"): IT-only fields never reach a
+// Requester. The response shapes are pinned to the contract, so a new column
+// on Ticket can't leak by accident (itPriority did, briefly, in L3-5).
+describe('API-40 requester responses expose only contract fields', () => {
+  it('create, list and detail contain no itPriority or internal ids', async () => {
+    const created = await requesterA.agent.post('/api/tickets').send({
+      ...(await referenceIds()),
+      summary: 'Keyboard missing the Enter key',
+      description: 'The Enter key fell off this morning.',
+      requestedPriority: 'HIGH',
+    })
+    expect(created.status).toBe(201)
+    expect(Object.keys(created.body).sort()).toEqual(
+      ['categoryId', 'createdAt', 'currentStatus', 'description', 'id', 'relatedSystemId', 'requestedPriority', 'summary', 'ticketNumber'].sort(),
+    )
+
+    const list = await requesterA.agent.get('/api/tickets')
+    const item = list.body.items.find((t: { id: number }) => t.id === created.body.id)
+    expect(Object.keys(item).sort()).toEqual(
+      ['category', 'createdAt', 'currentStatus', 'id', 'requestedPriority', 'summary', 'ticketNumber', 'updatedAt'].sort(),
+    )
+
+    const detail = await requesterA.agent.get(`/api/tickets/${created.body.id}`)
+    expect(detail.body).not.toHaveProperty('itPriority')
+    expect(detail.body).not.toHaveProperty('ownerId')
+    expect(detail.body).not.toHaveProperty('requesterId')
+    expect(detail.body.owner).toBeNull()
+    expect(detail.body).toHaveProperty('requesterResolvedAt', null)
+    expect(detail.body).toHaveProperty('updatedAt')
   })
 })
 

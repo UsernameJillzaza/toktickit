@@ -20,7 +20,9 @@ function stubApi(me: unknown | null) {
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
     if (url === '/api/auth/me') return me ? jsonResponse(200, { user: me }) : jsonResponse(401, { code: 'UNAUTHENTICATED' })
     if (url === '/api/auth/logout' && init?.method === 'POST') return { ok: true, status: 204, json: async () => ({}) }
-    if (url.startsWith('/api/tickets')) return jsonResponse(200, { items: [], total: 0, page: 1, pageSize: 10 })
+    if (url.startsWith('/api/tickets') || url.startsWith('/api/staff/tickets')) {
+      return jsonResponse(200, { items: [], total: 0, page: 1, pageSize: 10 })
+    }
     return jsonResponse(200, [])
   })
   vi.stubGlobal('fetch', fetchMock)
@@ -57,12 +59,16 @@ describe('UI-10 role navigation', () => {
     expect(within(nav).queryByRole('button', { name: /change requester/i })).not.toBeInTheDocument()
   })
 
-  it('IT Staff does not see Requester destinations', async () => {
+  it('IT Staff sees Ticket Queue and lands on it, without Requester destinations', async () => {
     stubApi(userOf('IT_STAFF'))
     renderAt('/')
 
     const nav = await screen.findByRole('navigation')
     await within(nav).findByText('IT Staff')
+    // '/' redirects to the queue in an effect, so wait for the active state.
+    await waitFor(() =>
+      expect(within(nav).getByRole('link', { name: 'Ticket Queue' })).toHaveAttribute('aria-current', 'page'),
+    )
     expect(within(nav).queryByRole('link', { name: 'My Tickets' })).not.toBeInTheDocument()
     expect(within(nav).queryByRole('link', { name: 'Create Ticket' })).not.toBeInTheDocument()
   })

@@ -45,6 +45,7 @@
 | API-12 | Security | AC-03, BR-03 | Requester ส่ง `requesterId` ของคนอื่นใน list / create | ได้เฉพาะของตัวเอง; Ticket ที่สร้างเป็นของผู้ login | server/tests/lab-03/authorization.api.test.ts | Planned |
 | API-13 | Security | AC-13, BR-16 | Requester A ขอ Ticket / Attachment / Comments ของ B | `404` ทุกตัว | server/tests/lab-03/authorization.api.test.ts | Planned |
 | API-14 | Regression | BR-42 | `GET /api/requesters` | `404` (ลบแล้ว) | server/tests/lab-03/authorization.api.test.ts | Planned |
+| API-40 | Security | BR-21, api-spec Requester Tickets | response ของ create / list / detail ฝั่ง Requester | มีเฉพาะ field ตามสัญญา ไม่มี `itPriority` / `ownerId` / `requesterId` | server/tests/lab-03/authorization.api.test.ts | Planned |
 
 ### Migration & regression
 

@@ -7,7 +7,9 @@ import { prisma } from './db'
 import { parseId, sendError } from './http'
 import { authenticate, requireRole } from './auth/middleware'
 import { authRouter } from './auth/routes'
+import { staffRouter } from './staff/routes'
 import { generateTicketNumber } from './ticketNumber'
+import type { Priority } from './generated/prisma/client'
 import {
   sanitizeFilename,
   ALLOWED_ATTACHMENT_MIME_TYPES,
@@ -25,6 +27,7 @@ app.use(express.json())
 // rejects on its own — see auth/middleware.ts), then the auth endpoints.
 app.use(authenticate)
 app.use('/api/auth', authRouter)
+app.use('/api/staff', staffRouter)
 
 // Liveness landing route.
 app.get('/', (_req, res) => {
@@ -70,12 +73,60 @@ app.get('/api/related-systems', async (_req, res) => {
 const requesterOnly = requireRole('REQUESTER')
 const anySignedInRole = requireRole('REQUESTER', 'IT_STAFF', 'ADMIN')
 
+// Response shapes for the Requester side, pinned to api-spec.md so a new
+// Ticket column (itPriority, ownerId …) can never leak to a Requester by
+// accident (BR-21). Each is an explicit allow-list.
+const REQUESTER_CREATED_SELECT = {
+  id: true,
+  ticketNumber: true,
+  summary: true,
+  description: true,
+  requestedPriority: true,
+  currentStatus: true,
+  categoryId: true,
+  relatedSystemId: true,
+  createdAt: true,
+} as const
+
+const REQUESTER_LIST_SELECT = {
+  id: true,
+  ticketNumber: true,
+  summary: true,
+  requestedPriority: true,
+  currentStatus: true,
+  createdAt: true,
+  updatedAt: true,
+  category: { select: { name: true } },
+} as const
+
+const REQUESTER_DETAIL_SELECT = {
+  id: true,
+  ticketNumber: true,
+  summary: true,
+  description: true,
+  requestedPriority: true,
+  currentStatus: true,
+  requesterResolvedAt: true,
+  createdAt: true,
+  updatedAt: true,
+  category: { select: { name: true } },
+  relatedSystem: { select: { name: true } },
+  owner: { select: { name: true } },
+  attachments: {
+    select: { id: true, filename: true, mimeType: true, sizeBytes: true, isRemoved: true, removedAt: true, createdAt: true },
+  },
+} as const
+
 /** A Requester may only touch their own Tickets; IT Staff / Admin may read any (5.1). */
 function canReadTicket(user: { id: number; role: string }, ticket: { requesterId: number }) {
   return user.role !== 'REQUESTER' || ticket.requesterId === user.id
 }
 
-const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH']
+// Requesters choose from three values; CRITICAL is IT-only (BR-21).
+const PRIORITIES: Priority[] = ['LOW', 'MEDIUM', 'HIGH']
+function isRequesterPriority(value: unknown): value is Priority {
+  return typeof value === 'string' && (PRIORITIES as string[]).includes(value)
+}
 
 function validateTicketInput(body: unknown): { field: string; message: string } | null {
   const b = (body ?? {}) as Record<string, unknown>
@@ -90,7 +141,7 @@ function validateTicketInput(body: unknown): { field: string; message: string } 
   ) {
     return { field: 'description', message: 'Description must be 10-2000 characters.' }
   }
-  if (typeof b.requestedPriority !== 'string' || !PRIORITIES.includes(b.requestedPriority)) {
+  if (!isRequesterPriority(b.requestedPriority)) {
     return { field: 'requestedPriority', message: 'requestedPriority must be LOW, MEDIUM, or HIGH.' }
   }
   if (typeof b.categoryId !== 'number') {
@@ -120,7 +171,7 @@ app.post('/api/tickets', requesterOnly, async (req, res) => {
       relatedSystemId: number
       summary: string
       description: string
-      requestedPriority: string
+      requestedPriority: Priority
     }
 
   try {
@@ -145,7 +196,9 @@ app.post('/api/tickets', requesterOnly, async (req, res) => {
             summary: summary.trim(),
             description: description.trim(),
             requestedPriority,
+            itPriority: requestedPriority, // BR-21: IT Priority starts equal
           },
+          select: REQUESTER_CREATED_SELECT,
         })
         return res.status(201).json(ticket)
       } catch (err) {
@@ -198,6 +251,10 @@ app.get('/api/tickets', requesterOnly, async (req, res) => {
   const search = typeof req.query.search === 'string' ? req.query.search : ''
   const categoryId = req.query.categoryId ? Number(req.query.categoryId) : undefined
   const priority = typeof req.query.priority === 'string' ? req.query.priority : undefined
+  // The column is an enum now, so an unknown value would make Prisma throw (500).
+  if (priority !== undefined && !isRequesterPriority(priority)) {
+    return sendError(res, 400, 'priority must be LOW, MEDIUM, or HIGH.', 'VALIDATION_ERROR', 'priority')
+  }
 
   const where = {
     requesterId,
@@ -225,7 +282,7 @@ app.get('/api/tickets', requesterOnly, async (req, res) => {
         orderBy,
         skip: (page - 1) * pageSize,
         take: pageSize,
-        include: { category: { select: { name: true } } },
+        select: REQUESTER_LIST_SELECT,
       }),
       prisma.ticket.count({ where }),
     ])
@@ -245,27 +302,13 @@ app.get('/api/tickets/:id', requesterOnly, async (req, res) => {
   const requesterId = req.user!.id
 
   try {
-    const ticket = await prisma.ticket.findUnique({
-      where: { id },
-      include: {
-        category: { select: { name: true } },
-        relatedSystem: { select: { name: true } },
-        attachments: {
-          select: {
-            id: true,
-            filename: true,
-            mimeType: true,
-            sizeBytes: true,
-            isRemoved: true,
-            removedAt: true,
-            createdAt: true,
-          },
-        },
-      },
+    // Ownership is part of the WHERE clause, so another requester's ticket
+    // and a missing one take the same path (BR-16).
+    const ticket = await prisma.ticket.findFirst({
+      where: { id, requesterId },
+      select: REQUESTER_DETAIL_SELECT,
     })
-    if (!ticket || ticket.requesterId !== requesterId) {
-      return sendError(res, 404, 'Ticket not found', 'NOT_FOUND')
-    }
+    if (!ticket) return sendError(res, 404, 'Ticket not found', 'NOT_FOUND')
     res.status(200).json(ticket)
   } catch (err) {
     console.error(err)

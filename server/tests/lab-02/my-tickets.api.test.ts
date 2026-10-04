@@ -23,6 +23,7 @@ async function createTicket(requesterId: number, summary: string) {
       summary,
       description: 'Fixture ticket created for my-tickets.api.test.ts',
       requestedPriority: 'LOW',
+      itPriority: 'LOW',
     },
   })
 }

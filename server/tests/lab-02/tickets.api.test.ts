@@ -37,7 +37,10 @@ describe('POST /api/tickets — valid input', () => {
     expect(res.status).toBe(201)
     expect(res.body.ticketNumber).toMatch(/^TKT-\d{4}-\d{6}$/)
     expect(res.body.currentStatus).toBe('NEW')
-    expect(res.body.requesterId).toBe(requester.user.id)
+    // The response follows the Lab 3 contract (no requesterId), so ownership
+    // is checked in the database instead.
+    const row = await prisma.ticket.findUniqueOrThrow({ where: { id: res.body.id } })
+    expect(row.requesterId).toBe(requester.user.id)
   })
 })
 
