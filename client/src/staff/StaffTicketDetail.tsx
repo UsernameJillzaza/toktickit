@@ -5,6 +5,7 @@ import { useAuth } from '../auth/AuthContext'
 import { PriorityBadge, RoleBadge, StatusBadge } from '../components/Badges'
 import { PRIORITY_LABELS, STATUS_LABELS } from '../components/labels'
 import { Forbidden, NotFound } from '../components/StatusPages'
+import Conversation from '../components/Conversation'
 import type { Role } from '../auth/AuthContext'
 
 type Owner = { id: number; name: string; role: Role; isActive: boolean }
@@ -132,8 +133,32 @@ export default function StaffTicketDetail() {
             reload={load}
           />
         </div>
-        <div className="col-lg-8 order-3">
+        <div className="col-lg-4 order-3 order-lg-4">
+          <Conversation
+            endpoint={`/api/staff/tickets/${ticket.id}/notes`}
+            heading="Internal notes — IT Staff and Administrators only"
+            inputLabel="New internal note"
+            submitLabel="Add internal note"
+            emptyText="No internal notes yet."
+            variant="internal"
+          />
+        </div>
+        <div className="col-lg-8 order-4 order-lg-3">
           <AttachmentsCard attachments={ticket.attachments} />
+          <div className="mt-3">
+            <Conversation
+              endpoint={`/api/tickets/${ticket.id}/comments`}
+              heading="Public comments — visible to the requester"
+              inputLabel="New public comment"
+              submitLabel="Post public comment"
+              emptyText="No public comments yet."
+              closedText={
+                ticket.currentStatus === 'CLOSED' || ticket.currentStatus === 'CANCELLED'
+                  ? 'This ticket is closed. New comments are disabled.'
+                  : null
+              }
+            />
+          </div>
         </div>
       </div>
     </main>

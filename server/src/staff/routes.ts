@@ -2,6 +2,7 @@ import { Router } from 'express'
 import type { Request, Response } from 'express'
 import { prisma } from '../db'
 import { parseId, sendError } from '../http'
+import { notesRouter } from '../tickets/conversation'
 import { ALL_STATUSES, allowedTransitions, canTransition, isTerminal, isTicketStatus, OWNER_REQUIRED_STATUSES } from '../tickets/workflow'
 import { requireRole } from '../auth/middleware'
 import type { Prisma, Priority, TicketStatus } from '../generated/prisma/client'
@@ -11,6 +12,7 @@ import type { Prisma, Priority, TicketStatus } from '../generated/prisma/client'
 // before any handler can look anything up (BR-16).
 export const staffRouter = Router()
 staffRouter.use(requireRole('IT_STAFF', 'ADMIN'))
+staffRouter.use('/tickets/:id/notes', notesRouter)
 
 const STATUSES = ALL_STATUSES
 const TERMINAL: TicketStatus[] = ALL_STATUSES.filter(isTerminal)

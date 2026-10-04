@@ -230,4 +230,6 @@ stand-in "E2E-04: switching requester" ใน `MyTickets.test.tsx` ถูกแ�
 
 เทสต์ server ของ Lab 2 ที่เหลือ 6 ไฟล์ (REG-01) รันแบบ login จริงผ่าน `loginAgent` — assertion เดิมทั้งหมดคงไว้ ยกเว้นสองกรณีที่ความหมายเปลี่ยนตาม Lab 3: "ไม่ส่ง requesterId → 400" กลายเป็น "ไม่มี session → 401" และ "requester inactive สร้าง Ticket → 404" กลายเป็น "requester ถูก deactivate แล้ว session เดิม → 401"
 
+Lab 2 UI-11 ใน `client/tests/lab-02/RequesterTicketDetail.test.tsx` เคยยืนยันว่า "ไม่มี public comment" (Lab 2 ตัดออก) — L3-7 เปลี่ยน assertion นั้นเป็น "มี section Public comments" ตาม FR-09; ส่วนที่ยืนยันว่าไม่มี Internal Notes / Actions Taken คงไว้
+
 _(ส่วนที่เหลืออัปเดตใน L3-10)_

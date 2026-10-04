@@ -39,6 +39,7 @@ const REQUESTER_ONLY: Call[] = [
   { method: 'get', path: () => `/api/tickets/${ticketOfB.id}`, label: 'GET /api/tickets/:id' },
   { method: 'post', path: () => `/api/tickets/${ticketOfB.id}/attachments`, label: 'POST /api/tickets/:id/attachments' },
   { method: 'post', path: () => `/api/attachments/${attachmentOfB.id}/remove`, label: 'POST /api/attachments/:id/remove' },
+  { method: 'post', path: () => `/api/tickets/${ticketOfB.id}/resolved-indication`, label: 'POST /api/tickets/:id/resolved-indication' },
 ]
 
 // Section 5.1 rows 'Queue, staff Ticket Detail, assignee list' onwards.
@@ -49,6 +50,8 @@ const STAFF_ONLY: Call[] = [
   { method: 'put', path: () => `/api/staff/tickets/${ticketOfB.id}/owner`, label: 'PUT /api/staff/tickets/:id/owner' },
   { method: 'put', path: () => `/api/staff/tickets/${ticketOfB.id}/it-priority`, label: 'PUT /api/staff/tickets/:id/it-priority' },
   { method: 'put', path: () => `/api/staff/tickets/${ticketOfB.id}/status`, label: 'PUT /api/staff/tickets/:id/status' },
+  { method: 'get', path: () => `/api/staff/tickets/${ticketOfB.id}/notes`, label: 'GET /api/staff/tickets/:id/notes' },
+  { method: 'post', path: () => `/api/staff/tickets/${ticketOfB.id}/notes`, label: 'POST /api/staff/tickets/:id/notes' },
 ]
 
 const PROTECTED: Call[] = [
@@ -56,6 +59,8 @@ const PROTECTED: Call[] = [
   ...STAFF_ONLY,
   { method: 'get', path: () => `/api/attachments/${attachmentOfB.id}`, label: 'GET /api/attachments/:id' },
   { method: 'get', path: () => `/api/attachments/${attachmentOfB.id}/download`, label: 'GET /api/attachments/:id/download' },
+  { method: 'get', path: () => `/api/tickets/${ticketOfB.id}/comments`, label: 'GET /api/tickets/:id/comments' },
+  { method: 'post', path: () => `/api/tickets/${ticketOfB.id}/comments`, label: 'POST /api/tickets/:id/comments' },
   { method: 'get', path: () => '/api/auth/me', label: 'GET /api/auth/me' },
   { method: 'post', path: () => '/api/auth/logout', label: 'POST /api/auth/logout' },
   { method: 'post', path: () => '/api/auth/change-password', label: 'POST /api/auth/change-password' },

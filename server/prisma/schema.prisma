@@ -52,18 +52,20 @@ enum Priority {
 // points at the same person (BR-39). passwordHash is null until a password is
 // issued (seed for migrated requesters, admin for new users) — BR-40.
 model User {
-  id                 Int       @id @default(autoincrement())
+  id                 Int             @id @default(autoincrement())
   name               String
-  email              String    @unique // stored trimmed + lowercased (BR-06)
-  role               Role      @default(REQUESTER)
+  email              String          @unique // stored trimmed + lowercased (BR-06)
+  role               Role            @default(REQUESTER)
   passwordHash       String? // scrypt$N$r$p$salt$key — never plaintext (BR-09)
-  mustChangePassword Boolean   @default(true)
-  isActive           Boolean   @default(true)
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
-  tickets            Ticket[]  @relation("TicketRequester")
-  ownedTickets       Ticket[]  @relation("TicketOwner") // BR-18: IT Staff / Admin owner
+  mustChangePassword Boolean         @default(true)
+  isActive           Boolean         @default(true)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  tickets            Ticket[]        @relation("TicketRequester")
+  ownedTickets       Ticket[]        @relation("TicketOwner") // BR-18: IT Staff / Admin owner
   sessions           Session[]
+  publicComments     PublicComment[] @relation("CommentAuthor")
+  internalNotes      InternalNote[]  @relation("NoteAuthor")
 
   @@index([role])
 }
@@ -92,25 +94,27 @@ model RelatedSystem {
 // Lab 2 §5/§7, Issue #16. BR-06/BR-07: every query that returns a Ticket
 // must filter by requesterId (ownership) — see server/src/app.ts.
 model Ticket {
-  id                  Int           @id @default(autoincrement())
-  ticketNumber        String        @unique
+  id                  Int             @id @default(autoincrement())
+  ticketNumber        String          @unique
   requesterId         Int
-  requester           User          @relation("TicketRequester", fields: [requesterId], references: [id])
+  requester           User            @relation("TicketRequester", fields: [requesterId], references: [id])
   ownerId             Int?
-  owner               User?         @relation("TicketOwner", fields: [ownerId], references: [id])
+  owner               User?           @relation("TicketOwner", fields: [ownerId], references: [id])
   categoryId          Int
-  category            Category      @relation(fields: [categoryId], references: [id])
+  category            Category        @relation(fields: [categoryId], references: [id])
   relatedSystemId     Int
-  relatedSystem       RelatedSystem @relation(fields: [relatedSystemId], references: [id])
+  relatedSystem       RelatedSystem   @relation(fields: [relatedSystemId], references: [id])
   summary             String
   description         String
   requestedPriority   Priority // never changes after creation (BR-21)
   itPriority          Priority // starts equal to requestedPriority (BR-21)
-  currentStatus       TicketStatus  @default(NEW)
+  currentStatus       TicketStatus    @default(NEW)
   requesterResolvedAt DateTime? // "Problem Appears Resolved" (BR-25)
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt // queue "Last Updated" (BR-26)
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt // queue "Last Updated" (BR-26)
   attachments         Attachment[]
+  publicComments      PublicComment[]
+  internalNotes       InternalNote[]
 
   @@index([requesterId])
   @@index([ownerId])
@@ -135,4 +139,31 @@ model Attachment {
   createdAt     DateTime  @default(now())
 
   @@index([ticketId])
+}
+
+// Lab 3 (BR-27 … BR-32): Public Comments and Internal Notes live in separate
+// tables, so a Requester endpoint can never select a note by mistake — it
+// would have to query a different table. Both are append-only.
+model PublicComment {
+  id        Int      @id @default(autoincrement())
+  ticketId  Int
+  ticket    Ticket   @relation(fields: [ticketId], references: [id])
+  authorId  Int
+  author    User     @relation("CommentAuthor", fields: [authorId], references: [id])
+  body      String // trimmed, 1–2000 characters, shown as plain text (BR-28, BR-30)
+  createdAt DateTime @default(now())
+
+  @@index([ticketId, createdAt])
+}
+
+model InternalNote {
+  id        Int      @id @default(autoincrement())
+  ticketId  Int
+  ticket    Ticket   @relation(fields: [ticketId], references: [id])
+  authorId  Int
+  author    User     @relation("NoteAuthor", fields: [authorId], references: [id])
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([ticketId, createdAt])
 }

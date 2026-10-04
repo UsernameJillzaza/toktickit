@@ -52,6 +52,13 @@ function stubApi(initial: Record<string, unknown>, onMutation: Handler = () => u
       if (r) return jsonResponse(r.status, r.body)
     }
     if (url === '/api/staff/tickets/12') return jsonResponse(200, initial)
+    if (url === '/api/tickets/12/comments' || url === '/api/staff/tickets/12/notes') {
+      if (init?.method === 'POST') {
+        const body = JSON.parse(String(init.body)).body
+        return jsonResponse(201, { id: 99, body, createdAt: '2026-10-01T00:00:00.000Z', author: { id: 8, name: 'Arthit Wongsa', role: 'IT_STAFF' } })
+      }
+      return jsonResponse(200, [])
+    }
     return jsonResponse(404, { error: 'Not found', code: 'NOT_FOUND' })
   })
   vi.stubGlobal('fetch', fetchMock)
@@ -215,6 +222,35 @@ describe('UI-22 conflict from the API', () => {
     expect(await within(ops).findByText('A ticket in IN_PROGRESS must have an owner.')).toBeInTheDocument()
     const loads = fetchMock.mock.calls.filter(([u, init]) => u === '/api/staff/tickets/12' && !init?.method)
     expect(loads.length).toBeGreaterThanOrEqual(2)
+  })
+})
+
+// UI-21 (AC-36, ui-spec §9): public and internal are separate cards with
+// separate forms and differently styled buttons, so a note can't be posted
+// publicly by accident.
+describe('UI-21 public comments vs internal notes', () => {
+  it('renders two separate cards, each posting to its own endpoint', async () => {
+    const fetchMock = stubApi(detail())
+    renderDetail()
+
+    const publicCard = await screen.findByRole('region', { name: /public comments — visible to the requester/i })
+    const notesCard = screen.getByRole('region', { name: /internal notes — it staff and administrators only/i })
+    expect(notesCard).toHaveClass('tt-internal-note')
+    expect(publicCard).not.toHaveClass('tt-internal-note')
+    expect(publicCard).not.toContainElement(notesCard)
+
+    const publicButton = within(publicCard).getByRole('button', { name: 'Post public comment' })
+    const noteButton = within(notesCard).getByRole('button', { name: 'Add internal note' })
+    expect(publicButton).toHaveClass('btn-success')
+    expect(noteButton).toHaveClass('btn-outline-warning')
+
+    await userEvent.type(within(notesCard).getByRole('textbox'), 'Check the VPN certificate first.')
+    await userEvent.click(noteButton)
+    expect(await within(notesCard).findByText('Check the VPN certificate first.')).toBeInTheDocument()
+    expect(within(publicCard).queryByText('Check the VPN certificate first.')).not.toBeInTheDocument()
+
+    const posts = fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST').map(([u]) => u)
+    expect(posts).toEqual(['/api/staff/tickets/12/notes'])
   })
 })
 
