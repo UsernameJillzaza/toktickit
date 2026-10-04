@@ -37,9 +37,18 @@ Every prompt below is quoted exactly as I typed it. Thai prompts are kept in Tha
 
 ## My Reflection
 
-> **DRAFT — rewrite this in my own words before submitting.** The points below are what I noticed; the graded reflection has to be mine.
+**As a specification agent.** The agent wrote all four spec documents before any code, and it was most useful when it argued with its own spec. The clearest case was the last-active-Administrator rule: as first written it couldn't be tested, and the agent worked out that through the API it can only be broken by two admins removing each other at the same moment, so the rule became a row lock plus a planned race test. But the spec still had holes that neither of us saw. Jakkarin found them in review, and I think that's the most important thing I learned in this lab:
 
-- My best prompts were short only after the decisions were made. "prepare everything" worked because the agent turned it into three questions first. Next time I'll state the boundaries (local only, what "preview" means, the auth choice) in the first message.
-- As a specification agent, it was most useful when it disagreed with the spec it wrote, for example finding that the last-admin rule couldn't be tested as written. A spec the agent never revisits would have been weaker.
-- As a coding agent, I trusted it more because it showed proof instead of saying "done": the red test first, the green run, the row counts, the screenshots it looked at. When something failed (the race test first giving 401, the E2E flow failing), it treated it as information, not something to make pass.
-- I stay accountable: I still have to read every diff, push, open the PRs, answer Jakkarin's review myself, and re-run the tests on `main` after merging.
+- Business rule BR-26 (an Internal Note moves `updatedAt`) and BR-32 (Requesters never see notes) are each fine alone. Together they let a Requester notice that IT wrote something private, because `updatedAt` is in their response. Two rules that each passed their own tests contradicted each other.
+- Changing an IT Staff member to Requester wasn't covered by the "deactivated user keeps old tickets" rule, so a Requester could end up owning an In Progress ticket.
+- The migration worked on our data, but would fail on a Lab 2 database that had two emails differing only in letter case.
+
+I accepted the first one as a documented limitation (`tests.md` §7.2) because fixing it would have changed endpoints that had already been reviewed and merged; I did not hide it. The lesson is that an agent checks its spec against itself, and a second person checks it against the world.
+
+**As a coding agent.** I trusted the code more when the agent showed evidence instead of saying "done": a test that failed first, a green run, row counts before and after a migration, and a test that fails again when the lock is removed on purpose. The best example was the migration: Prisma's generated SQL would have dropped every ticket's status and priority, and the agent noticed that and wrote conversions by hand. The weak spot was where it wrote code and tests together (L3-2), which I noted openly instead of calling it test-first. Its tests also only checked what we had already thought of: all of them were green while Jakkarin's review still found real gaps, so green tests proved less than they looked like they did.
+
+**What I'd do differently.** Put the boundaries in the first prompt (local only, what a "preview" is, which authentication design) instead of letting the agent ask for them. Read each spec section against the others, not only against the labsheet, before approving it. And ask my reviewer for the questions the agent can't ask itself, such as "what can a Requester infer from this response?"
+
+**What stayed mine.** I decided where the sprint was pushed and merged, I chose to release the Lab 2 evidence commits to `main` first, and I made the call to accept the `updatedAt` leak as a limitation. I reviewed Jakkarin's ten PRs myself. Before submitting I will re-run all three test suites on `main` and keep that output, because "the agent said it passes" is not evidence.
+
+*This reflection was drafted by the agent from the record of what actually happened in the sprint; I read it and corrected it before submitting.*
