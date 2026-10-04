@@ -3,9 +3,18 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import RequesterTicketDetail from '../../src/tickets/RequesterTicketDetail'
-import { RequesterProvider } from '../../src/requester/RequesterContext'
+import { AuthProvider } from '../../src/auth/AuthContext'
+import type { AuthUser } from '../../src/auth/AuthContext'
 
-const REQUESTER = { id: 1, name: 'Jennifer Anderson', email: 'jennifer.anderson@toktickit.test' }
+// Lab 3 (L3-3): the screen reads the signed-in user from AuthProvider
+// instead of the retired Development Requester selector.
+const REQUESTER: AuthUser = {
+  id: 1,
+  name: 'Jennifer Anderson',
+  email: 'jennifer.anderson@toktickit.test',
+  role: 'REQUESTER',
+  mustChangePassword: false,
+}
 
 const BASE_TICKET = {
   id: 1,
@@ -20,21 +29,20 @@ const BASE_TICKET = {
   attachments: [] as unknown[],
 }
 
-function renderDetail() {
+function renderDetail(user: AuthUser = REQUESTER) {
   return render(
     <MemoryRouter initialEntries={['/tickets/1']}>
-      <RequesterProvider>
+      <AuthProvider initialUser={user}>
         <Routes>
           <Route path="/tickets/:id" element={<RequesterTicketDetail />} />
         </Routes>
-      </RequesterProvider>
+      </AuthProvider>
     </MemoryRouter>,
   )
 }
 
 beforeEach(() => {
   vi.restoreAllMocks()
-  window.localStorage.setItem('toktickit.selectedRequester', JSON.stringify(REQUESTER))
 })
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -54,7 +62,8 @@ describe('UI-11 read-only Ticket Detail', () => {
     expect(await screen.findByText('TKT-2026-000001')).toBeInTheDocument()
     expect(screen.getByText('Laptop battery drains quickly')).toBeInTheDocument()
     expect(screen.queryByRole('textbox', { name: /summary/i })).not.toBeInTheDocument()
-    expect(screen.queryByText(/public comment/i)).not.toBeInTheDocument()
+    // Lab 3 FR-09 adds Public Comments to this screen on purpose (tests.md 7.1).
+    expect(await screen.findByRole('region', { name: /public comments/i })).toBeInTheDocument()
     expect(screen.queryByText(/internal note/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/actions taken/i)).not.toBeInTheDocument()
   })

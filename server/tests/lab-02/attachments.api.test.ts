@@ -1,17 +1,15 @@
-import 'dotenv/config'
 import fs from 'node:fs'
-import path from 'node:path'
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
-import request from 'supertest'
-import { PrismaPg } from '@prisma/adapter-pg'
-import { PrismaClient } from '../../src/generated/prisma/client'
-import app from '../../src/app'
+import { prisma } from '../../src/db'
+import { cleanupTestUsers, createLoggedInUser } from '../helpers/auth'
+import type { TestAgent } from '../helpers/auth'
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL })
-const prisma = new PrismaClient({ adapter })
+// Lab 3 (L3-4): every call runs as the signed-in owner of the fixture
+// tickets; requesterId is no longer sent. Upload folders and rows are
+// removed by cleanupTestUsers().
 
-const createdTicketIds: number[] = []
 let requesterId: number
+let agent: TestAgent
 let ticketId: number
 // The cap test deliberately fills this ticket to its 5-active limit, so the
 // soft-remove lifecycle tests get their own separate ticket — otherwise
@@ -30,31 +28,22 @@ async function newFixtureTicket() {
       summary: 'Fixture ticket for attachments.api.test.ts',
       description: 'Created only to exercise attachment endpoints.',
       requestedPriority: 'LOW',
+      itPriority: 'LOW',
     },
   })
-  createdTicketIds.push(ticket.id)
   return ticket.id
 }
 
 beforeAll(async () => {
-  const [requester] = await prisma.devRequester.findMany({ where: { isActive: true }, take: 1 })
-  requesterId = requester.id
+  const requester = await createLoggedInUser({ role: 'REQUESTER' })
+  requesterId = requester.user.id
+  agent = requester.agent
   ticketId = await newFixtureTicket()
   softRemoveTicketId = await newFixtureTicket()
 })
 
 afterAll(async () => {
-  // Clean up any files multer wrote to disk for these tickets' fixture data.
-  for (const id of createdTicketIds) {
-    fs.rmSync(path.join(process.cwd(), 'uploads', String(id)), { recursive: true, force: true })
-  }
-
-  if (createdTicketIds.length > 0) {
-    // Attachment.ticketId is a RESTRICT foreign key — delete attachments
-    // before their parent tickets, or the ticket delete fails.
-    await prisma.attachment.deleteMany({ where: { ticketId: { in: createdTicketIds } } })
-    await prisma.ticket.deleteMany({ where: { id: { in: createdTicketIds } } })
-  }
+  await cleanupTestUsers()
   await prisma.$disconnect()
 })
 
@@ -63,9 +52,8 @@ const JPEG_BYTES = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 
 // API-05 (BR-12): a valid, small JPEG uploads successfully.
 describe('POST /api/tickets/:id/attachments — valid upload', () => {
   it('returns 201 with attachment metadata', async () => {
-    const res = await request(app)
+    const res = await agent
       .post(`/api/tickets/${ticketId}/attachments`)
-      .query({ requesterId })
       .attach('file', JPEG_BYTES, { filename: 'photo.jpg', contentType: 'image/jpeg' })
 
     expect(res.status).toBe(201)
@@ -82,18 +70,16 @@ describe('POST /api/tickets/:id/attachments — oversized file', () => {
   it('rejects a file over 5 MB', async () => {
     const oversized = Buffer.alloc(6 * 1024 * 1024, 1)
 
-    const res = await request(app)
+    const res = await agent
       .post(`/api/tickets/${ticketId}/attachments`)
-      .query({ requesterId })
       .attach('file', oversized, { filename: 'huge.jpg', contentType: 'image/jpeg' })
 
     expect(res.status).toBe(400)
   })
 
   it('still accepts a valid file afterward', async () => {
-    const res = await request(app)
+    const res = await agent
       .post(`/api/tickets/${ticketId}/attachments`)
-      .query({ requesterId })
       .attach('file', JPEG_BYTES, { filename: 'photo-after-reject.jpg', contentType: 'image/jpeg' })
 
     expect(res.status).toBe(201)
@@ -102,9 +88,8 @@ describe('POST /api/tickets/:id/attachments — oversized file', () => {
 
 describe('POST /api/tickets/:id/attachments — unsupported file type', () => {
   it('rejects an .exe-style mime type', async () => {
-    const res = await request(app)
+    const res = await agent
       .post(`/api/tickets/${ticketId}/attachments`)
-      .query({ requesterId })
       .attach('file', Buffer.from('not really an exe'), {
         filename: 'tool.exe',
         contentType: 'application/x-msdownload',
@@ -121,16 +106,14 @@ describe('POST /api/tickets/:id/attachments — active-attachment cap', () => {
     // enough more to reach exactly 5 active, then try a 6th.
     const existing = await prisma.attachment.count({ where: { ticketId, isRemoved: false } })
     for (let i = existing; i < 5; i++) {
-      const res = await request(app)
+      const res = await agent
         .post(`/api/tickets/${ticketId}/attachments`)
-        .query({ requesterId })
         .attach('file', JPEG_BYTES, { filename: `fill-${i}.jpg`, contentType: 'image/jpeg' })
       expect(res.status).toBe(201)
     }
 
-    const sixth = await request(app)
+    const sixth = await agent
       .post(`/api/tickets/${ticketId}/attachments`)
-      .query({ requesterId })
       .attach('file', JPEG_BYTES, { filename: 'sixth.jpg', contentType: 'image/jpeg' })
 
     expect(sixth.status).toBe(400)
@@ -141,9 +124,8 @@ describe('POST /api/tickets/:id/attachments — active-attachment cap', () => {
 // keeps the row (and the file) — never a hard delete.
 describe('soft-remove lifecycle', () => {
   it('removes an attachment, keeps its row, and blocks its download', async () => {
-    const uploadRes = await request(app)
+    const uploadRes = await agent
       .post(`/api/tickets/${softRemoveTicketId}/attachments`)
-      .query({ requesterId })
       .attach('file', JPEG_BYTES, { filename: 'to-be-removed.jpg', contentType: 'image/jpeg' })
     expect(uploadRes.status).toBe(201)
     const attachmentId = uploadRes.body.id
@@ -152,9 +134,9 @@ describe('soft-remove lifecycle', () => {
     expect(beforeRow).not.toBeNull()
     expect(fs.existsSync(beforeRow!.storagePath)).toBe(true)
 
-    const removeRes = await request(app)
+    const removeRes = await agent
       .post(`/api/attachments/${attachmentId}/remove`)
-      .send({ requesterId, reason: 'Uploaded the wrong file' })
+      .send({ reason: 'Uploaded the wrong file' })
     expect(removeRes.status).toBe(200)
     expect(removeRes.body.isRemoved).toBe(true)
 
@@ -165,33 +147,30 @@ describe('soft-remove lifecycle', () => {
     expect(fs.existsSync(afterRow!.storagePath)).toBe(true)
 
     // BR-15: metadata is still visible...
-    const metadataRes = await request(app)
+    const metadataRes = await agent
       .get(`/api/attachments/${attachmentId}`)
-      .query({ requesterId })
     expect(metadataRes.status).toBe(200)
     expect(metadataRes.body.isRemoved).toBe(true)
 
     // ...but download is blocked.
-    const downloadRes = await request(app)
+    const downloadRes = await agent
       .get(`/api/attachments/${attachmentId}/download`)
-      .query({ requesterId })
     expect(downloadRes.status).toBe(404)
   })
 
   it('returns 409 when removing an already-removed attachment again', async () => {
-    const uploadRes = await request(app)
+    const uploadRes = await agent
       .post(`/api/tickets/${softRemoveTicketId}/attachments`)
-      .query({ requesterId })
       .attach('file', JPEG_BYTES, { filename: 'double-remove.jpg', contentType: 'image/jpeg' })
     const attachmentId = uploadRes.body.id
 
-    await request(app)
+    await agent
       .post(`/api/attachments/${attachmentId}/remove`)
-      .send({ requesterId, reason: 'First removal' })
+      .send({ reason: 'First removal' })
 
-    const secondRemove = await request(app)
+    const secondRemove = await agent
       .post(`/api/attachments/${attachmentId}/remove`)
-      .send({ requesterId, reason: 'Second removal attempt' })
+      .send({ reason: 'Second removal attempt' })
 
     expect(secondRemove.status).toBe(409)
   })

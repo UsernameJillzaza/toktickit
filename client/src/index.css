@@ -5,7 +5,7 @@
    stock palette rather than inventing parallel custom classes, so every
    existing btn-success/text-danger/etc. usage picks up the real brand
    colors for free. --bs-secondary (Bootstrap's neutral grey) is left
-   alone on purpose: it's used for genuinely neutral UI (Change Requester,
+   alone on purpose: it's used for genuinely neutral UI (the Log out button,
    the Requested Priority badge), which ui-spec.md never asked to be green
    — only links/tabs/focus accents were specified as "Secondary green". */
 :root {
@@ -23,4 +23,135 @@
 
 body {
   background-color: #f5f7f6; /* Page background */
+}
+
+/* ---- Lab 3 (docs/lab-03/ui-spec.md §1–3) ---- */
+
+/* Active nav item: pale green surface + primary text (aria-current is set
+   by NavLink, so screen readers get the same information). */
+.nav-link.tt-nav-active {
+  background-color: #eaf6ef;
+  color: #006b3c;
+  border-radius: 0.375rem;
+  font-weight: 600;
+}
+
+/* Badges: one palette for every screen. Text is always present, so color
+   is never the only signal. */
+.tt-badge {
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+.tt-badge-role-REQUESTER { background-color: #eaf6ef; color: #006b3c; }
+.tt-badge-role-IT_STAFF { background-color: #0b7a46; color: #fff; }
+.tt-badge-role-ADMIN { background-color: #1f2e28; color: #fff; }
+
+.tt-badge-status-NEW { background-color: #eaf6ef; color: #006b3c; }
+.tt-badge-status-OPEN { background-color: #0b7a46; color: #fff; }
+.tt-badge-status-IN_PROGRESS { background-color: #006b3c; color: #fff; }
+.tt-badge-status-WAITING_FOR_REQUESTER { background-color: #b45309; color: #fff; }
+.tt-badge-status-RESOLVED { background-color: #fff; color: #006b3c; border-color: #006b3c; }
+.tt-badge-status-CLOSED { background-color: #4a5550; color: #fff; }
+.tt-badge-status-REOPENED { background-color: #fff; color: #b45309; border-color: #b45309; }
+.tt-badge-status-CANCELLED { background-color: #6b7470; color: #fff; }
+
+.tt-badge-priority-LOW { background-color: #6b7470; color: #fff; }
+.tt-badge-priority-MEDIUM { background-color: #0b7a46; color: #fff; }
+.tt-badge-priority-HIGH { background-color: #b45309; color: #fff; }
+.tt-badge-priority-CRITICAL { background-color: #b3261e; color: #fff; }
+
+/* Read-only field surface and IT-only internal notes (used from L3-6/L3-7). */
+.tt-readonly { background-color: #f0efe8; }
+.tt-internal-note {
+  background-color: #fff7e6;
+  border-left: 4px solid #b45309;
+}
+.tt-pre-wrap { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* Queue (ui-spec §8): summary limited to two lines in table and cards. */
+.tt-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* "Requester reports resolved" indicator (ui-spec §2): primary-green
+   outline + check mark, distinct from the Resolved status badge. */
+.tt-badge-resolved-indicator {
+  background-color: #fff;
+  color: #006b3c;
+  border-color: #006b3c;
+}
+
+/* Confirmation dialog (ui-spec §9, BR-24). Plain overlay, no Bootstrap JS. */
+.tt-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(31, 46, 40, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 1050;
+}
+.tt-dialog {
+  max-width: 440px;
+  width: 100%;
+}
+
+/* "Must change password" label on User Management (ui-spec §10): amber. */
+.tt-badge-must-change {
+  background-color: #fff7e6;
+  color: #b45309;
+  border-color: #b45309;
+}
+
+/* User Management (ui-spec §10): one table that becomes stacked cards below
+   768px. Each cell shows its column name from data-label, so there is no
+   second copy of the list (and no duplicate Edit buttons). */
+@media (max-width: 767.98px) {
+  .tt-stack-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+  .tt-stack-table tr {
+    display: block;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--bs-border-color);
+  }
+  .tt-stack-table td {
+    display: flex;
+    gap: 0.5rem;
+    border: 0;
+    padding: 0.2rem 0;
+  }
+  .tt-stack-table td::before {
+    content: attr(data-label);
+    min-width: 4.5rem;
+    color: var(--bs-secondary-color);
+    font-size: 0.875rem;
+  }
+  .tt-stack-table td[data-label='Edit']::before {
+    content: none;
+  }
+  .tt-stack-full {
+    width: 100%;
+  }
+}
+
+/* ui-spec §11: on phones every button is a comfortable touch target (at
+   least 44px tall), including small buttons and the hamburger. Desktop keeps
+   the compact sizes. Checked by e2e RESP-01. */
+@media (max-width: 767.98px) {
+  .btn,
+  .navbar-toggler {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
 }

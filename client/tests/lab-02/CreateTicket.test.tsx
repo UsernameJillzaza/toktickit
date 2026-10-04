@@ -2,11 +2,20 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import CreateTicket from '../../src/tickets/CreateTicket'
-import { RequesterProvider } from '../../src/requester/RequesterContext'
+import { AuthProvider } from '../../src/auth/AuthContext'
+import type { AuthUser } from '../../src/auth/AuthContext'
 
 const CATEGORIES = [{ id: 1, name: 'Hardware' }]
 const RELATED_SYSTEMS = [{ id: 1, name: 'Corporate Laptop' }]
-const REQUESTER = { id: 1, name: 'Jennifer Anderson', email: 'jennifer.anderson@toktickit.test' }
+// Lab 3 (L3-3): the screen reads the signed-in user from AuthProvider
+// instead of the retired Development Requester selector.
+const REQUESTER: AuthUser = {
+  id: 1,
+  name: 'Jennifer Anderson',
+  email: 'jennifer.anderson@toktickit.test',
+  role: 'REQUESTER',
+  mustChangePassword: false,
+}
 
 function mockFetch(handlers: {
   onTicketPost?: () => { ok: boolean; status: number; body: unknown }
@@ -29,17 +38,16 @@ function mockFetch(handlers: {
   )
 }
 
-function renderCreateTicket() {
+function renderCreateTicket(user: AuthUser = REQUESTER) {
   return render(
-    <RequesterProvider>
+    <AuthProvider initialUser={user}>
       <CreateTicket />
-    </RequesterProvider>,
+    </AuthProvider>,
   )
 }
 
 beforeEach(() => {
   vi.restoreAllMocks()
-  window.localStorage.setItem('toktickit.selectedRequester', JSON.stringify(REQUESTER))
 })
 afterEach(() => {
   vi.unstubAllGlobals()

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { useRequester } from '../requester/RequesterContext'
+import { useAuth } from '../auth/AuthContext'
+import { apiFetch } from '../api'
 
 type RefItem = { id: number; name: string }
 type RefState = 'loading' | 'ready' | 'failure'
@@ -14,7 +15,9 @@ const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH'] as const
 // API failure. System-generated Ticket Number is read-only and only ever
 // shown after a successful save (BR-01).
 export default function CreateTicket() {
-  const { requester } = useRequester()
+  // Lab 3: the server reads identity from the session cookie (BR-03); the
+  // user is only needed here to know a requester is signed in.
+  const { user: requester } = useAuth()
 
   const [refState, setRefState] = useState<RefState>('loading')
   const [categories, setCategories] = useState<RefItem[]>([])
@@ -94,11 +97,10 @@ export default function CreateTicket() {
     setApiError(null)
 
     try {
-      const res = await fetch('/api/tickets', {
+      const res = await apiFetch('/api/tickets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          requesterId: requester.id,
           categoryId: Number(categoryId),
           relatedSystemId: Number(relatedSystemId),
           summary: summary.trim(),

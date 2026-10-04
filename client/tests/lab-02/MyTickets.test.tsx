@@ -3,9 +3,18 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import MyTickets from '../../src/tickets/MyTickets'
-import { RequesterProvider } from '../../src/requester/RequesterContext'
+import { AuthProvider } from '../../src/auth/AuthContext'
+import type { AuthUser } from '../../src/auth/AuthContext'
 
-const REQUESTER = { id: 1, name: 'Jennifer Anderson', email: 'jennifer.anderson@toktickit.test' }
+// Lab 3 (L3-3): the screen reads the signed-in user from AuthProvider
+// instead of the retired Development Requester selector.
+const REQUESTER: AuthUser = {
+  id: 1,
+  name: 'Jennifer Anderson',
+  email: 'jennifer.anderson@toktickit.test',
+  role: 'REQUESTER',
+  mustChangePassword: false,
+}
 
 const ONE_TICKET = [
   {
@@ -29,19 +38,18 @@ function mockFetch(respond: (url: string) => { items: unknown[]; total: number }
   )
 }
 
-function renderMyTickets() {
+function renderMyTickets(user: AuthUser = REQUESTER) {
   return render(
     <MemoryRouter>
-      <RequesterProvider>
+      <AuthProvider initialUser={user}>
         <MyTickets />
-      </RequesterProvider>
+      </AuthProvider>
     </MemoryRouter>,
   )
 }
 
 beforeEach(() => {
   vi.restoreAllMocks()
-  window.localStorage.setItem('toktickit.selectedRequester', JSON.stringify(REQUESTER))
 })
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -102,33 +110,23 @@ describe('UI-10 pagination', () => {
   })
 })
 
-// E2E-04 stand-in (no Playwright yet, same caveat as earlier Lab 2 Issues):
-// switching requester changes which tickets are requested/shown.
-describe('E2E-04 stand-in: switching requester re-queries with the new id', () => {
-  it('requests tickets scoped to whichever requester is currently selected', async () => {
-    const requestedIds: string[] = []
+// E2E-04 stand-in retired in L3-4: switching requester no longer exists.
+// What replaces it is BR-03 — the client never names a requester at all;
+// the server scopes My Tickets by the session cookie.
+describe('BR-03: My Tickets request carries no requesterId', () => {
+  it('asks for tickets without any requester parameter', async () => {
+    const urls: string[] = []
     vi.stubGlobal(
       'fetch',
       vi.fn(async (url: string) => {
-        const params = new URLSearchParams(url.split('?')[1])
-        requestedIds.push(params.get('requesterId') ?? '')
+        urls.push(url)
         return { ok: true, status: 200, json: async () => ({ items: [], total: 0, page: 1, pageSize: 10 }) }
       }),
     )
 
-    const { unmount } = renderMyTickets()
-    await waitFor(() => expect(requestedIds).toContain('1'))
-    unmount()
-
-    window.localStorage.setItem(
-      'toktickit.selectedRequester',
-      JSON.stringify({ id: 2, name: 'Michael Brown', email: 'michael.brown@toktickit.test' }),
-    )
-    // A fresh mount is the honest way to simulate "switched requester, then
-    // loaded My Tickets again" — RequesterProvider only reads localStorage
-    // once, on mount, not on every render.
     renderMyTickets()
 
-    await waitFor(() => expect(requestedIds).toContain('2'))
+    await waitFor(() => expect(urls.some((u) => u.startsWith('/api/tickets'))).toBe(true))
+    expect(urls.every((u) => !u.includes('requesterId'))).toBe(true)
   })
 })

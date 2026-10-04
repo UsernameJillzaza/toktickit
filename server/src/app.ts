@@ -1,11 +1,17 @@
-import 'dotenv/config'
 import fs from 'node:fs'
 import path from 'node:path'
 import express from 'express'
+import type { NextFunction, Request, Response } from 'express'
 import multer from 'multer'
-import { PrismaPg } from '@prisma/adapter-pg'
-import { PrismaClient } from './generated/prisma/client'
+import { prisma } from './db'
+import { parseId, sendError } from './http'
+import { authenticate, requireRole } from './auth/middleware'
+import { authRouter } from './auth/routes'
+import { staffRouter } from './staff/routes'
+import { adminRouter } from './admin/routes'
+import { conversationRouter } from './tickets/conversation'
 import { generateTicketNumber } from './ticketNumber'
+import type { Priority } from './generated/prisma/client'
 import {
   sanitizeFilename,
   ALLOWED_ATTACHMENT_MIME_TYPES,
@@ -15,12 +21,17 @@ import {
 
 // The Express app is defined here and exported WITHOUT calling listen(),
 // so tests (Supertest) can import it directly. server.ts owns listen().
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL })
-const prisma = new PrismaClient({ adapter })
-
 const app = express()
 
 app.use(express.json())
+
+// Lab 3: attach req.user from the session cookie on every request (never
+// rejects on its own — see auth/middleware.ts), then the auth endpoints.
+app.use(authenticate)
+app.use('/api/auth', authRouter)
+app.use('/api/staff', staffRouter)
+app.use('/api/admin', adminRouter)
+app.use('/api/tickets', conversationRouter)
 
 // Liveness landing route.
 app.get('/', (_req, res) => {
@@ -46,22 +57,6 @@ app.get('/api/categories', async (_req, res) => {
   }
 })
 
-// GET /api/requesters — active Development Requesters only (Lab 2 §5.3, BR-05).
-// This selector is a testing mechanism, not authentication (BR-03).
-app.get('/api/requesters', async (_req, res) => {
-  try {
-    const requesters = await prisma.devRequester.findMany({
-      where: { isActive: true },
-      orderBy: { name: 'asc' },
-      select: { id: true, name: true, email: true },
-    })
-    res.status(200).json(requesters)
-  } catch (err) {
-    console.error(err)
-    res.status(503).json({ error: 'Database unavailable' })
-  }
-})
-
 // GET /api/related-systems — reference data for Ticket creation (Lab 2 §5.3).
 app.get('/api/related-systems', async (_req, res) => {
   try {
@@ -76,7 +71,66 @@ app.get('/api/related-systems', async (_req, res) => {
   }
 })
 
-const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH']
+// Lab 3 (spec 5.1, BR-03): identity comes from the session only. Any
+// `requesterId` a client still sends is ignored. The role check runs before
+// any lookup, so a 403 says nothing about whether the resource exists.
+const requesterOnly = requireRole('REQUESTER')
+const anySignedInRole = requireRole('REQUESTER', 'IT_STAFF', 'ADMIN')
+
+// Response shapes for the Requester side, pinned to api-spec.md so a new
+// Ticket column (itPriority, ownerId …) can never leak to a Requester by
+// accident (BR-21). Each is an explicit allow-list.
+const REQUESTER_CREATED_SELECT = {
+  id: true,
+  ticketNumber: true,
+  summary: true,
+  description: true,
+  requestedPriority: true,
+  currentStatus: true,
+  categoryId: true,
+  relatedSystemId: true,
+  createdAt: true,
+} as const
+
+const REQUESTER_LIST_SELECT = {
+  id: true,
+  ticketNumber: true,
+  summary: true,
+  requestedPriority: true,
+  currentStatus: true,
+  createdAt: true,
+  updatedAt: true,
+  category: { select: { name: true } },
+} as const
+
+const REQUESTER_DETAIL_SELECT = {
+  id: true,
+  ticketNumber: true,
+  summary: true,
+  description: true,
+  requestedPriority: true,
+  currentStatus: true,
+  requesterResolvedAt: true,
+  createdAt: true,
+  updatedAt: true,
+  category: { select: { name: true } },
+  relatedSystem: { select: { name: true } },
+  owner: { select: { name: true } },
+  attachments: {
+    select: { id: true, filename: true, mimeType: true, sizeBytes: true, isRemoved: true, removedAt: true, createdAt: true },
+  },
+} as const
+
+/** A Requester may only touch their own Tickets; IT Staff / Admin may read any (5.1). */
+function canReadTicket(user: { id: number; role: string }, ticket: { requesterId: number }) {
+  return user.role !== 'REQUESTER' || ticket.requesterId === user.id
+}
+
+// Requesters choose from three values; CRITICAL is IT-only (BR-21).
+const PRIORITIES: Priority[] = ['LOW', 'MEDIUM', 'HIGH']
+function isRequesterPriority(value: unknown): value is Priority {
+  return typeof value === 'string' && (PRIORITIES as string[]).includes(value)
+}
 
 function validateTicketInput(body: unknown): { field: string; message: string } | null {
   const b = (body ?? {}) as Record<string, unknown>
@@ -91,11 +145,8 @@ function validateTicketInput(body: unknown): { field: string; message: string } 
   ) {
     return { field: 'description', message: 'Description must be 10-2000 characters.' }
   }
-  if (typeof b.requestedPriority !== 'string' || !PRIORITIES.includes(b.requestedPriority)) {
+  if (!isRequesterPriority(b.requestedPriority)) {
     return { field: 'requestedPriority', message: 'requestedPriority must be LOW, MEDIUM, or HIGH.' }
-  }
-  if (typeof b.requesterId !== 'number') {
-    return { field: 'requesterId', message: 'requesterId is required.' }
   }
   if (typeof b.categoryId !== 'number') {
     return { field: 'categoryId', message: 'categoryId is required.' }
@@ -107,30 +158,27 @@ function validateTicketInput(body: unknown): { field: string; message: string } 
 }
 
 // POST /api/tickets — Create Ticket (Lab 2 §4.4, §6, Issue #16). BR-08/BR-09
-// validate input; BR-01 generates the Ticket Number; a missing FK (requester
-// not found/inactive, category, related system) is a 404, not a 400 — the
-// request shape was fine, the referenced resource just doesn't exist.
-app.post('/api/tickets', async (req, res) => {
+// validate input; BR-01 generates the Ticket Number; a missing FK (category,
+// related system) is a 404, not a 400 — the request shape was fine, the
+// referenced resource just doesn't exist. Lab 3: the requester is always the
+// signed-in user (BR-03), so there is no requester lookup any more.
+app.post('/api/tickets', requesterOnly, async (req, res) => {
   const validationError = validateTicketInput(req.body)
   if (validationError) {
-    return res.status(400).json({ error: validationError.message, field: validationError.field })
+    return sendError(res, 400, validationError.message, 'VALIDATION_ERROR', validationError.field)
   }
 
-  const { requesterId, categoryId, relatedSystemId, summary, description, requestedPriority } =
+  const requesterId = req.user!.id
+  const { categoryId, relatedSystemId, summary, description, requestedPriority } =
     req.body as {
-      requesterId: number
       categoryId: number
       relatedSystemId: number
       summary: string
       description: string
-      requestedPriority: string
+      requestedPriority: Priority
     }
 
   try {
-    const requester = await prisma.devRequester.findUnique({ where: { id: requesterId } })
-    if (!requester || !requester.isActive) {
-      return res.status(404).json({ error: 'Requester not found' })
-    }
     const category = await prisma.category.findUnique({ where: { id: categoryId } })
     if (!category) return res.status(404).json({ error: 'Category not found' })
 
@@ -152,7 +200,9 @@ app.post('/api/tickets', async (req, res) => {
             summary: summary.trim(),
             description: description.trim(),
             requestedPriority,
+            itPriority: requestedPriority, // BR-21: IT Priority starts equal
           },
+          select: REQUESTER_CREATED_SELECT,
         })
         return res.status(201).json(ticket)
       } catch (err) {
@@ -176,15 +226,12 @@ function parseIntParam(value: unknown, fallback: number): number | null {
 }
 
 // GET /api/tickets — My Tickets list (Lab 2 §6.1, Issue #17). BR-06: always
-// scoped to `requesterId` — this is the line that keeps Requester A from
-// ever seeing Requester B's tickets. BR-17/BR-18: pageSize capped at 50
-// (not an error), default sort createdAt desc with id desc as a stable
+// scoped to the signed-in requester — this is the line that keeps Requester
+// A from ever seeing Requester B's tickets. BR-17/BR-18: pageSize capped at
+// 50 (not an error), default sort createdAt desc with id desc as a stable
 // secondary sort.
-app.get('/api/tickets', async (req, res) => {
-  const requesterId = parseIntParam(req.query.requesterId, NaN)
-  if (requesterId === null || Number.isNaN(requesterId)) {
-    return res.status(400).json({ error: 'requesterId is required' })
-  }
+app.get('/api/tickets', requesterOnly, async (req, res) => {
+  const requesterId = req.user!.id
 
   const page = parseIntParam(req.query.page, 1)
   if (page === null || page < 1) {
@@ -208,6 +255,10 @@ app.get('/api/tickets', async (req, res) => {
   const search = typeof req.query.search === 'string' ? req.query.search : ''
   const categoryId = req.query.categoryId ? Number(req.query.categoryId) : undefined
   const priority = typeof req.query.priority === 'string' ? req.query.priority : undefined
+  // The column is an enum now, so an unknown value would make Prisma throw (500).
+  if (priority !== undefined && !isRequesterPriority(priority)) {
+    return sendError(res, 400, 'priority must be LOW, MEDIUM, or HIGH.', 'VALIDATION_ERROR', 'priority')
+  }
 
   const where = {
     requesterId,
@@ -235,7 +286,7 @@ app.get('/api/tickets', async (req, res) => {
         orderBy,
         skip: (page - 1) * pageSize,
         take: pageSize,
-        include: { category: { select: { name: true } } },
+        select: REQUESTER_LIST_SELECT,
       }),
       prisma.ticket.count({ where }),
     ])
@@ -249,35 +300,19 @@ app.get('/api/tickets', async (req, res) => {
 // GET /api/tickets/:id — Requester Ticket Detail (Lab 2 §8.5, Issue #18).
 // BR-07: not found and wrong-owner return the same 404, so a client can't
 // tell the two cases apart.
-app.get('/api/tickets/:id', async (req, res) => {
-  const id = Number(req.params.id)
-  const requesterId = Number(req.query.requesterId)
-  if (!Number.isInteger(requesterId)) {
-    return res.status(400).json({ error: 'requesterId is required' })
-  }
+app.get('/api/tickets/:id', requesterOnly, async (req, res) => {
+  const id = parseId(req.params.id)
+  if (id === null) return sendError(res, 404, 'Ticket not found', 'NOT_FOUND')
+  const requesterId = req.user!.id
 
   try {
-    const ticket = await prisma.ticket.findUnique({
-      where: { id },
-      include: {
-        category: { select: { name: true } },
-        relatedSystem: { select: { name: true } },
-        attachments: {
-          select: {
-            id: true,
-            filename: true,
-            mimeType: true,
-            sizeBytes: true,
-            isRemoved: true,
-            removedAt: true,
-            createdAt: true,
-          },
-        },
-      },
+    // Ownership is part of the WHERE clause, so another requester's ticket
+    // and a missing one take the same path (BR-16).
+    const ticket = await prisma.ticket.findFirst({
+      where: { id, requesterId },
+      select: REQUESTER_DETAIL_SELECT,
     })
-    if (!ticket || ticket.requesterId !== requesterId) {
-      return res.status(404).json({ error: 'Ticket not found' })
-    }
+    if (!ticket) return sendError(res, 404, 'Ticket not found', 'NOT_FOUND')
     res.status(200).json(ticket)
   } catch (err) {
     console.error(err)
@@ -319,7 +354,8 @@ function safeUnlink(filePath: string) {
 // BR-12 (type/size/count) is enforced twice: multer's fileFilter/limits for
 // type and size, and an explicit count check here for the 5-active cap —
 // no single multer option covers "how many rows already exist in the DB".
-app.post('/api/tickets/:id/attachments', (req, res) => {
+// The role check runs before multer, so a 401/403 never writes a file.
+app.post('/api/tickets/:id/attachments', requesterOnly, (req, res) => {
   upload.single('file')(req, res, async (uploadErr) => {
     if (uploadErr) {
       const code = (uploadErr as { code?: string }).code
@@ -333,21 +369,17 @@ app.post('/api/tickets/:id/attachments', (req, res) => {
       return res.status(400).json({ error: 'file is required' })
     }
 
-    const ticketId = Number(req.params.id)
-    const requesterId = Number(req.query.requesterId ?? req.body.requesterId)
-    if (!Number.isInteger(requesterId)) {
-      safeUnlink(req.file.path)
-      return res.status(400).json({ error: 'requesterId is required' })
-    }
+    const ticketId = parseId(req.params.id)
+    const requesterId = req.user!.id
 
     try {
-      const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } })
+      const ticket = ticketId === null ? null : await prisma.ticket.findUnique({ where: { id: ticketId } })
       if (!ticket || ticket.requesterId !== requesterId) {
         safeUnlink(req.file.path)
-        return res.status(404).json({ error: 'Ticket not found' })
+        return sendError(res, 404, 'Ticket not found', 'NOT_FOUND')
       }
 
-      const activeCount = await prisma.attachment.count({ where: { ticketId, isRemoved: false } })
+      const activeCount = await prisma.attachment.count({ where: { ticketId: ticket.id, isRemoved: false } })
       if (activeCount >= MAX_ACTIVE_ATTACHMENTS_PER_TICKET) {
         safeUnlink(req.file.path)
         return res
@@ -357,7 +389,7 @@ app.post('/api/tickets/:id/attachments', (req, res) => {
 
       const attachment = await prisma.attachment.create({
         data: {
-          ticketId,
+          ticketId: ticket.id,
           filename: req.file.originalname,
           storagePath: req.file.path,
           mimeType: req.file.mimetype,
@@ -384,17 +416,15 @@ app.post('/api/tickets/:id/attachments', (req, res) => {
 
 // GET /api/attachments/:id — metadata only, visible even when isRemoved
 // (BR-15: removed attachments still show metadata, just can't be downloaded).
-app.get('/api/attachments/:id', async (req, res) => {
-  const id = Number(req.params.id)
-  const requesterId = Number(req.query.requesterId)
-  if (!Number.isInteger(requesterId)) {
-    return res.status(400).json({ error: 'requesterId is required' })
-  }
+// Lab 3: IT Staff / Admin may read attachments on any Ticket (5.1).
+app.get('/api/attachments/:id', anySignedInRole, async (req, res) => {
+  const id = parseId(req.params.id)
+  if (id === null) return sendError(res, 404, 'Attachment not found', 'NOT_FOUND')
 
   try {
     const attachment = await prisma.attachment.findUnique({ where: { id }, include: { ticket: true } })
-    if (!attachment || attachment.ticket.requesterId !== requesterId) {
-      return res.status(404).json({ error: 'Attachment not found' })
+    if (!attachment || !canReadTicket(req.user!, attachment.ticket)) {
+      return sendError(res, 404, 'Attachment not found', 'NOT_FOUND')
     }
     res.status(200).json({
       id: attachment.id,
@@ -414,17 +444,14 @@ app.get('/api/attachments/:id', async (req, res) => {
 
 // GET /api/attachments/:id/download — BR-15: a soft-removed attachment 404s
 // here even though its metadata is still visible via the endpoint above.
-app.get('/api/attachments/:id/download', async (req, res) => {
-  const id = Number(req.params.id)
-  const requesterId = Number(req.query.requesterId)
-  if (!Number.isInteger(requesterId)) {
-    return res.status(400).json({ error: 'requesterId is required' })
-  }
+app.get('/api/attachments/:id/download', anySignedInRole, async (req, res) => {
+  const id = parseId(req.params.id)
+  if (id === null) return sendError(res, 404, 'Attachment not found', 'NOT_FOUND')
 
   try {
     const attachment = await prisma.attachment.findUnique({ where: { id }, include: { ticket: true } })
-    if (!attachment || attachment.ticket.requesterId !== requesterId || attachment.isRemoved) {
-      return res.status(404).json({ error: 'Attachment not found' })
+    if (!attachment || !canReadTicket(req.user!, attachment.ticket) || attachment.isRemoved) {
+      return sendError(res, 404, 'Attachment not found', 'NOT_FOUND')
     }
     res.download(attachment.storagePath, attachment.filename)
   } catch (err) {
@@ -435,28 +462,26 @@ app.get('/api/attachments/:id/download', async (req, res) => {
 
 // POST /api/attachments/:id/remove — soft-remove only (BR-14). Idempotent
 // guard: removing an already-removed attachment is a 409, not a silent 200.
-app.post('/api/attachments/:id/remove', async (req, res) => {
-  const id = Number(req.params.id)
-  const { requesterId, reason } = req.body as { requesterId?: unknown; reason?: unknown }
+app.post('/api/attachments/:id/remove', requesterOnly, async (req, res) => {
+  const id = parseId(req.params.id)
+  const { reason } = (req.body ?? {}) as { reason?: unknown }
+  const requesterId = req.user!.id
 
-  if (typeof requesterId !== 'number') {
-    return res.status(400).json({ error: 'requesterId is required' })
-  }
   if (typeof reason !== 'string' || reason.trim().length < 5) {
-    return res.status(400).json({ error: 'reason must be at least 5 characters' })
+    return sendError(res, 400, 'reason must be at least 5 characters', 'VALIDATION_ERROR', 'reason')
   }
 
   try {
-    const attachment = await prisma.attachment.findUnique({ where: { id }, include: { ticket: true } })
+    const attachment = id === null ? null : await prisma.attachment.findUnique({ where: { id }, include: { ticket: true } })
     if (!attachment || attachment.ticket.requesterId !== requesterId) {
-      return res.status(404).json({ error: 'Attachment not found' })
+      return sendError(res, 404, 'Attachment not found', 'NOT_FOUND')
     }
     if (attachment.isRemoved) {
       return res.status(409).json({ error: 'Attachment already removed' })
     }
 
     const updated = await prisma.attachment.update({
-      where: { id },
+      where: { id: attachment.id },
       data: { isRemoved: true, removedAt: new Date(), removalReason: reason.trim() },
     })
     res.status(200).json({
@@ -469,6 +494,24 @@ app.post('/api/attachments/:id/remove', async (req, res) => {
     console.error(err)
     res.status(500).json({ error: 'Unable to remove attachment' })
   }
+})
+
+// Unknown /api routes answer in the standard JSON error shape instead of
+// Express's HTML page — this is also what removed endpoints such as
+// GET /api/requesters (BR-42) now return.
+app.use('/api', (_req, res) => {
+  sendError(res, 404, 'Not found', 'NOT_FOUND')
+})
+
+// Last-resort error handler (Express 5 forwards rejected async handlers here).
+// Malformed JSON is the client's fault → 400, not 500. Anything else is
+// logged server-side and answered with a safe, detail-free message.
+app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  if ((err as { type?: string }).type === 'entity.parse.failed') {
+    return sendError(res, 400, 'Malformed JSON body.', 'VALIDATION_ERROR')
+  }
+  console.error(err)
+  return sendError(res, 500, 'Unexpected server error.', 'SERVER_ERROR')
 })
 
 export default app

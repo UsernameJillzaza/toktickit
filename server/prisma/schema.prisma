@@ -20,15 +20,66 @@ model Category {
   tickets   Ticket[]
 }
 
-// Lab 2 §5, Issue #14: a temporary testing identity, not real authentication
-// (spec BR-03). Deliberately not named `User` — see specification.md D-02.
-model DevRequester {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  isActive  Boolean  @default(true)
+// Lab 3 §5.1: one permitted role per user (BR-14).
+enum Role {
+  REQUESTER
+  IT_STAFF
+  ADMIN
+}
+
+// BR-22: the eight workflow states; allowed moves live in src/tickets/workflow.ts.
+enum TicketStatus {
+  NEW
+  OPEN
+  IN_PROGRESS
+  WAITING_FOR_REQUESTER
+  RESOLVED
+  CLOSED
+  REOPENED
+  CANCELLED
+}
+
+// BR-21: CRITICAL is only ever an IT Priority — requesters pick LOW/MEDIUM/HIGH.
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+// Lab 3 §5.2: the Lab 2 `DevRequester` table renamed and extended in place
+// (migration add_user_auth) — same ids, so every Ticket.requesterId still
+// points at the same person (BR-39). passwordHash is null until a password is
+// issued (seed for migrated requesters, admin for new users) — BR-40.
+model User {
+  id                 Int             @id @default(autoincrement())
+  name               String
+  email              String          @unique // stored trimmed + lowercased (BR-06)
+  role               Role            @default(REQUESTER)
+  passwordHash       String? // scrypt$N$r$p$salt$key — never plaintext (BR-09)
+  mustChangePassword Boolean         @default(true)
+  isActive           Boolean         @default(true)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  tickets            Ticket[]        @relation("TicketRequester")
+  ownedTickets       Ticket[]        @relation("TicketOwner") // BR-18: IT Staff / Admin owner
+  sessions           Session[]
+  publicComments     PublicComment[] @relation("CommentAuthor")
+  internalNotes      InternalNote[]  @relation("NoteAuthor")
+
+  @@index([role])
+}
+
+// Lab 3 §6.1, D-01/D-03: server-side session. `id` is the SHA-256 of the
+// random token held in the httpOnly cookie, never the token itself.
+model Session {
+  id        String   @id
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
-  tickets   Ticket[]
+  expiresAt DateTime
+
+  @@index([userId])
 }
 
 // Lab 2 §5.3, Issue #15: the specific service/app/device/platform a Ticket
@@ -43,22 +94,32 @@ model RelatedSystem {
 // Lab 2 §5/§7, Issue #16. BR-06/BR-07: every query that returns a Ticket
 // must filter by requesterId (ownership) — see server/src/app.ts.
 model Ticket {
-  id                Int           @id @default(autoincrement())
-  ticketNumber      String        @unique
-  requesterId       Int
-  requester         DevRequester  @relation(fields: [requesterId], references: [id])
-  categoryId        Int
-  category          Category      @relation(fields: [categoryId], references: [id])
-  relatedSystemId   Int
-  relatedSystem     RelatedSystem @relation(fields: [relatedSystemId], references: [id])
-  summary           String
-  description       String
-  requestedPriority String
-  currentStatus     String        @default("NEW")
-  createdAt         DateTime      @default(now())
-  attachments       Attachment[]
+  id                  Int             @id @default(autoincrement())
+  ticketNumber        String          @unique
+  requesterId         Int
+  requester           User            @relation("TicketRequester", fields: [requesterId], references: [id])
+  ownerId             Int?
+  owner               User?           @relation("TicketOwner", fields: [ownerId], references: [id])
+  categoryId          Int
+  category            Category        @relation(fields: [categoryId], references: [id])
+  relatedSystemId     Int
+  relatedSystem       RelatedSystem   @relation(fields: [relatedSystemId], references: [id])
+  summary             String
+  description         String
+  requestedPriority   Priority // never changes after creation (BR-21)
+  itPriority          Priority // starts equal to requestedPriority (BR-21)
+  currentStatus       TicketStatus    @default(NEW)
+  requesterResolvedAt DateTime? // "Problem Appears Resolved" (BR-25)
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt // queue "Last Updated" (BR-26)
+  attachments         Attachment[]
+  publicComments      PublicComment[]
+  internalNotes       InternalNote[]
 
   @@index([requesterId])
+  @@index([ownerId])
+  @@index([currentStatus])
+  @@index([updatedAt])
 }
 
 // Lab 2 §4.5/§7, Issue #18. BR-14: removal is soft only — never
@@ -78,4 +139,31 @@ model Attachment {
   createdAt     DateTime  @default(now())
 
   @@index([ticketId])
+}
+
+// Lab 3 (BR-27 … BR-32): Public Comments and Internal Notes live in separate
+// tables, so a Requester endpoint can never select a note by mistake — it
+// would have to query a different table. Both are append-only.
+model PublicComment {
+  id        Int      @id @default(autoincrement())
+  ticketId  Int
+  ticket    Ticket   @relation(fields: [ticketId], references: [id])
+  authorId  Int
+  author    User     @relation("CommentAuthor", fields: [authorId], references: [id])
+  body      String // trimmed, 1–2000 characters, shown as plain text (BR-28, BR-30)
+  createdAt DateTime @default(now())
+
+  @@index([ticketId, createdAt])
+}
+
+model InternalNote {
+  id        Int      @id @default(autoincrement())
+  ticketId  Int
+  ticket    Ticket   @relation(fields: [ticketId], references: [id])
+  authorId  Int
+  author    User     @relation("NoteAuthor", fields: [authorId], references: [id])
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([ticketId, createdAt])
 }
