@@ -20,6 +20,7 @@ export type StaffTicket = {
   requestedPriority: string
   itPriority: string
   requesterResolvedAt: string | null
+  updatedAt: string
   createdAt: string
   category: { name: string }
   relatedSystem: { name: string }
@@ -50,6 +51,14 @@ export default function StaffTicketDetail() {
   const [ticket, setTicket] = useState<StaffTicket | null>(null)
   const [state, setState] = useState<LoadState>('loading')
   const [assignees, setAssignees] = useState<Assignee[]>([])
+  const [saved, setSaved] = useState(false)
+  const [opsErrors, setOpsErrors] = useState<ControlErrors>({})
+
+  useEffect(() => {
+    if (!saved) return
+    const t = setTimeout(() => setSaved(false), 3000)
+    return () => clearTimeout(t)
+  }, [saved])
 
   const load = useCallback(async () => {
     try {
@@ -125,12 +134,25 @@ export default function StaffTicketDetail() {
           <TicketInfo ticket={ticket} />
         </div>
         <div className="col-lg-4 order-2">
+          {/* Keyed on the ticket's version: when the ticket really changes
+              (a save, or a 409 reload after someone else's change) the card
+              remounts with fresh controls in the same render. An identical
+              refetch keeps the key, so a choice the user just made survives.
+              Resetting in an effect instead left a gap after paint in which
+              a fast selection was wiped (found by E2E-05). */}
           <OperationsCard
+            key={`${ticket.updatedAt}|${ticket.currentStatus}`}
             ticket={ticket}
             meId={user!.id}
             assignees={assignees}
-            onSaved={setTicket}
+            onSaved={(next) => {
+              setTicket(next)
+              setSaved(true)
+            }}
             reload={load}
+            saved={saved}
+            errors={opsErrors}
+            setErrors={setOpsErrors}
           />
         </div>
         <div className="col-lg-4 order-3 order-lg-4">
@@ -227,36 +249,27 @@ function AttachmentsCard({ attachments }: { attachments: Attachment[] }) {
   )
 }
 
+type ControlErrors = Partial<Record<Control, string>>
+
 type OperationsProps = {
   ticket: StaffTicket
   meId: number
   assignees: Assignee[]
   onSaved: (ticket: StaffTicket) => void
   reload: () => Promise<void>
+  // Kept by the parent so they survive the card remounting on a new version.
+  saved: boolean
+  errors: ControlErrors
+  setErrors: (errors: ControlErrors) => void
 }
 
-function OperationsCard({ ticket, meId, assignees, onSaved, reload }: OperationsProps) {
+function OperationsCard({ ticket, meId, assignees, onSaved, reload, saved, errors, setErrors }: OperationsProps) {
   const terminal = ticket.currentStatus === 'CLOSED' || ticket.currentStatus === 'CANCELLED'
   const [ownerChoice, setOwnerChoice] = useState(ticket.owner ? String(ticket.owner.id) : '')
   const [priorityChoice, setPriorityChoice] = useState(ticket.itPriority)
   const [statusChoice, setStatusChoice] = useState('')
   const [busy, setBusy] = useState<Control | null>(null)
-  const [errors, setErrors] = useState<Partial<Record<Control, string>>>({})
   const [confirming, setConfirming] = useState<string | null>(null)
-  const [saved, setSaved] = useState(false)
-
-  // Keep the controls in step with the latest ticket (after a save or reload).
-  useEffect(() => {
-    setOwnerChoice(ticket.owner ? String(ticket.owner.id) : '')
-    setPriorityChoice(ticket.itPriority)
-    setStatusChoice('')
-  }, [ticket])
-
-  useEffect(() => {
-    if (!saved) return
-    const t = setTimeout(() => setSaved(false), 3000)
-    return () => clearTimeout(t)
-  }, [saved])
 
   async function save(control: Control, path: string, body: unknown) {
     setBusy(control)
@@ -275,7 +288,6 @@ function OperationsCard({ ticket, meId, assignees, onSaved, reload }: Operations
         return
       }
       onSaved(data)
-      setSaved(true)
     } catch {
       setErrors({ [control]: 'Unable to reach the server. Please try again.' })
     } finally {
