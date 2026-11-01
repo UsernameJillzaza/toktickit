@@ -83,7 +83,7 @@ IDs restart at BR-01 for Lab 4 as the handout asks. "Lab 3 BR-nn" means a rule f
 - **BR-25** Every dashboard number and list is computed by the backend from the live database for each request; the client never counts rows itself. Endpoints return metrics and at most 5 list rows each, never whole Ticket collections.
 - **BR-26** Definitions. **Active** = status not `CLOSED` and not `CANCELLED` (the Lab 3 queue default). **Open (Requester view)** = status not `RESOLVED`, `CLOSED` or `CANCELLED`.
   - Requester: `open` = own Tickets that are Open; `waitingForYou` = own Tickets in `WAITING_FOR_REQUESTER`; `resolvedLast30Days` = own Tickets in `RESOLVED` or `CLOSED` whose `updatedAt` is within the last 30 × 24 hours; `needsAttention` = own `WAITING_FOR_REQUESTER` Tickets, newest `updatedAt` first, at most 5; `recentlyUpdated` = own Tickets by `updatedAt` descending, at most 5.
-  - IT Staff/Administrator: `unassigned` = Active Tickets with no owner; `myActive` = Active Tickets owned by the signed-in user; `requesterReportsResolved` = Active Tickets whose requester pressed "appears resolved"; `byStatus` = a count for each of the eight statuses over all Tickets; `byItPriority` = counts of Active Tickets per IT Priority; `urgent` = Active Tickets with IT Priority `CRITICAL`, newest `updatedAt` first, at most 5; `recentlyUpdated` = all Tickets by `updatedAt` descending, at most 5; `myRecentActions` = the signed-in user's last 5 Actions by `actionAt` descending.
+  - IT Staff/Administrator: `unassigned` = Active Tickets with no owner; `myActive` = Active Tickets owned by the signed-in user; `requesterReportsResolved` = Active Tickets whose requester pressed "appears resolved"; `byStatus` = a count for each of the eight statuses over all Tickets; `byItPriority` = counts of Active Tickets per IT Priority; `urgent` = Active Tickets with IT Priority `CRITICAL`, newest `updatedAt` first, at most 5; `recentlyUpdated` = all Tickets by `updatedAt` descending, at most 5; `myRecentActions` = the last 5 Actions whose *performer* is the signed-in user (not the ones they only created for someone else), by `actionAt` descending.
   - Administrator only: `users` = total, active, inactive and count per role.
 - **BR-27** Time windows are rolling (relative to the request time); the API returns timestamps in UTC and the UI shows them in the browser's local time. "30 days" means 30 × 24 hours, with no calendar-day boundary.
 - **BR-28** A Requester sees only their own Tickets in every metric and list, and never an IT Priority. Role mismatch gives `403` before any query runs; a signed-out call gives `401`.
@@ -246,14 +246,14 @@ Each AC maps to at least one planned test in [tests.md](tests.md) Section 3.
 
 ## 10. Definition of Done (Product)
 
-- [ ] Every FR, BR and AC above is implemented, and each AC has a passing automated test listed in `tests.md`
-- [ ] All new endpoints enforce authorization on the backend; each row of 5.5 is tested at the API
-- [ ] Resolution and cancel gates tested by direct API calls, not only through the UI
-- [ ] Migration applied to a Lab 3 database without data loss; drift check empty; seed idempotent
-- [ ] Dashboard numbers match direct database queries (tests and a screenshot pairing a card with its query result)
+- [x] Every FR, BR and AC above is implemented, and each AC has a passing automated test listed in `tests.md` (traceability table, `tests.md` §3; all 76 planned tests pass, §6)
+- [x] All new endpoints enforce authorization on the backend; each row of 5.5 is tested at the API (API-15 … API-19)
+- [x] Resolution and cancel gates tested by direct API calls, not only through the UI (API-20 … API-28)
+- [x] Migration applied to a Lab 3 database without data loss; drift check empty; seed idempotent (MIG-01 … MIG-04; drift check in `tests.md` §6; row counts in PR #72)
+- [x] Dashboard numbers match direct database queries (API-30, API-33, E2E-03 and `staff-dashboard/metric-vs-database.png`)
 - [ ] Server, client and E2E suites pass on `main`; the Lab 1–3 suites still pass
-- [ ] Zen Green consistency, responsive and accessibility checklist in `ui-spec.md` completed with evidence for each item
-- [ ] No console errors, broken links, placeholders or unfinished controls
+- [x] Zen Green consistency, responsive and accessibility checklist in `ui-spec.md` completed with evidence for each item (§11)
+- [x] No console errors, broken links, placeholders or unfinished controls (E2E-04)
 - [ ] README current; `.env` never committed
 - [ ] Every PR reviewed and approved by the peer reviewer before merge; Issues closed and the board in its final column
 - [ ] `tests.md`, `reviewer.md` and `ai-use.md` are filled from real results; screenshots in `artifacts/lab-04/screenshots/`

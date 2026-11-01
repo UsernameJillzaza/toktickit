@@ -158,6 +158,7 @@ Unchanged, but they accept an optional `expectedUpdatedAt`. When present it must
 
 Two new optional query parameters, combined with the existing `search`, `categoryId`, `priority`, `sort`, `page`, `pageSize`:
 
+- An **empty** value (`?status=`) is an unknown value and is refused like any other; omit the parameter for no filter.
 - `status`: `open` (not Resolved, Closed or Cancelled), `resolved` (Resolved or Closed), or one of the eight status names. Anything else → `400 VALIDATION_ERROR` field `status`. Default: all.
 - `updatedWithinDays`: positive integer up to 365; only Tickets whose `updatedAt` is within that many × 24 hours. Anything else → `400` field `updatedWithinDays`.
 

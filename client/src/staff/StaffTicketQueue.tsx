@@ -76,6 +76,7 @@ export default function StaffTicketQueue() {
   const [state, setState] = useState<LoadState>('loading')
   const [categories, setCategories] = useState<Category[]>([])
   const [reloadKey, setReloadKey] = useState(0)
+  const [refusal, setRefusal] = useState<string | null>(null)
 
   const query = params.toString()
 
@@ -114,9 +115,16 @@ export default function StaffTicketQueue() {
       .then(async (res) => {
         if (cancelled) return
         if (res.status === 403) return setState('forbidden')
+        if (res.status === 400) {
+          const refused = await res.json().catch(() => ({}))
+          if (cancelled) return
+          setRefusal(typeof refused.error === 'string' ? refused.error : null)
+          return setState('failure')
+        }
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const body = await res.json()
         if (cancelled) return
+        setRefusal(null)
         setItems(body.items)
         setTotal(body.total)
         setState('ready')
@@ -254,7 +262,7 @@ export default function StaffTicketQueue() {
 
       {state === 'failure' && (
         <div className="alert alert-danger d-flex justify-content-between align-items-center" role="alert">
-          <span>We couldn't load the ticket queue. Check your connection and try again.</span>
+          <span>{refusal ?? "We couldn't load the ticket queue. Check your connection and try again."}</span>
           <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => setReloadKey((k) => k + 1)}>
             Retry
           </button>

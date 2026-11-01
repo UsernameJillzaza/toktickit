@@ -180,7 +180,7 @@ test('E2E-01 two staff record, edit, complete and cancel Actions; the Requester 
   const r = await (await browser.newContext({ viewport: { width: 1280, height: 900 } })).newPage()
   await signIn(r, requester)
   await r.goto(`/tickets/${ticketId}`)
-  const work = r.getByRole('region', { name: 'Work done on your ticket' })
+  const work = r.getByRole('region', { name: 'Actions taken' })
   await expect(work.getByRole('listitem')).toHaveCount(2)
   await expect(work).toContainText('Wording that B saved first')
   await expect(work).toContainText('✓ Completed')

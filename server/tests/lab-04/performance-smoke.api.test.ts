@@ -56,7 +56,8 @@ describe('PERF-01 the dashboards and the Actions list answer in time on the seed
 
   it('the Actions list of the Ticket that has the most Actions', async () => {
     const busiest = await prisma.actionTaken.groupBy({ by: ['ticketId'], _count: { _all: true }, orderBy: { _count: { ticketId: 'desc' } }, take: 1 })
-    if (busiest.length === 0) return // nothing seeded: the Actions list is trivially fast
+    // The seed holds Actions (MIG-03); an unseeded database must fail here, not pass without measuring.
+    expect(busiest.length, 'run the seed first: no Action exists to measure').toBeGreaterThan(0)
     const id = busiest[0].ticketId
     expect(await medianMs(() => staff.agent.get(`/api/staff/tickets/${id}/actions`))).toBeLessThan(LIMIT_MS)
   })

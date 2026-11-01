@@ -76,6 +76,10 @@ async function internalLinks(page: Page): Promise<string[]> {
   return [...new Set(hrefs)].filter((h) => !h.startsWith('/api/'))
 }
 
+/** `/staff/tickets/12?x=1` and `/staff/tickets/13` are the same kind of page: `/staff/tickets/:id`. */
+const routeOf = (path: string) => path.split('?')[0].replace(/\/\d+(?=\/|$)/g, '/:id')
+const PER_ROUTE = 3 // visit up to three different links of each kind of page
+
 async function walk(page: Page, user: E2EUser, startsWith: string[]) {
   await signIn(page, user)
   const found = watch(page)
@@ -85,37 +89,38 @@ async function walk(page: Page, user: E2EUser, startsWith: string[]) {
   // Level 1: the menu. Level 2: every link found on each of those pages (detail pages, drill-downs).
   const queue = [...new Set([...startsWith, ...(await internalLinks(page))])]
   const seen = new Set<string>()
+  const perRoute = new Map<string, number>()
   const visited: string[] = []
-  while (queue.length > 0 && visited.length < 40) {
+  while (queue.length > 0 && visited.length < 60) {
     const path = queue.shift()!
-    if (seen.has(path) || path === '/change-password') continue
+    const route = routeOf(path)
+    if (seen.has(path) || route === '/change-password' || (perRoute.get(route) ?? 0) >= PER_ROUTE) continue
     seen.add(path)
+    perRoute.set(route, (perRoute.get(route) ?? 0) + 1)
     await page.goto(path)
     await inspect(page, path, found)
     visited.push(path)
-    if (visited.length <= 8) for (const next of await internalLinks(page)) if (!seen.has(next)) queue.push(next)
+    for (const next of await internalLinks(page)) if (!seen.has(next)) queue.push(next)
   }
-  return { found, visited }
+  return { found, visited, routes: [...perRoute.keys()].sort() }
 }
 
 test.describe('E2E-04 every reachable page, as each role', () => {
   test('Requester', async ({ page }) => {
-    const { found, visited } = await walk(page, requester, ['/dashboard', '/my-tickets', '/create-ticket'])
-    expect(visited.length).toBeGreaterThan(5)
-    expect(visited.some((p) => p.startsWith('/tickets/'))).toBe(true)
+    const { found, routes } = await walk(page, requester, ['/dashboard', '/my-tickets', '/create-ticket'])
+    expect(routes, 'kinds of page reached').toEqual(['/create-ticket', '/dashboard', '/my-tickets', '/tickets/:id'])
     expect(found, found.join('\n')).toEqual([])
   })
 
   test('IT Staff', async ({ page }) => {
-    const { found, visited } = await walk(page, staff, ['/dashboard', '/staff/queue'])
-    expect(visited.length).toBeGreaterThan(8)
-    expect(visited.some((p) => p.startsWith('/staff/tickets/'))).toBe(true)
+    const { found, routes } = await walk(page, staff, ['/dashboard', '/staff/queue'])
+    expect(routes, 'kinds of page reached').toEqual(['/dashboard', '/staff/queue', '/staff/tickets/:id'])
     expect(found, found.join('\n')).toEqual([])
   })
 
   test('Administrator', async ({ page }) => {
-    const { found, visited } = await walk(page, admin, ['/dashboard', '/staff/queue', '/admin/users'])
-    expect(visited).toContain('/admin/users')
+    const { found, routes } = await walk(page, admin, ['/dashboard', '/staff/queue', '/admin/users'])
+    expect(routes, 'kinds of page reached').toEqual(['/admin/users', '/dashboard', '/staff/queue', '/staff/tickets/:id'])
     expect(found, found.join('\n')).toEqual([])
   })
 

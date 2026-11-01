@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { render, screen, waitFor, within, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { StaffActions, RequesterActions } from '../../src/actions/ActionsTaken'
@@ -274,7 +276,8 @@ describe('UI-05 edit, Complete and Cancel', () => {
     const [patch] = api.writes()
     expect(patch.method).toBe('PATCH')
     expect(patch.url).toBe('/api/staff/tickets/12/actions/41')
-    expect(patch.body).toMatchObject({ version: 3, description: 'Replaced the switcher and the cable', performedById: 8 })
+    // Only what the user changed is sent, so untouched fields (and the seconds of the time) are never rewritten.
+    expect(patch.body).toEqual({ version: 3, description: 'Replaced the switcher and the cable' })
   })
 
   it('Complete needs a Result, then sends the version and the result', async () => {
@@ -374,7 +377,7 @@ describe('UI-08 the Requester view', () => {
       action({ id: 2, description: 'Ordered a spare cable' }),
     ])
     render(<RequesterActions ticketId={12} />)
-    const section = await screen.findByRole('region', { name: 'Work done on your ticket' })
+    const section = await screen.findByRole('region', { name: 'Actions taken' })
     expect(await within(section).findByText('Ordered a spare cable')).toBeInTheDocument()
     const first = within(section).getAllByRole('listitem')[0]
     expect(first).toHaveTextContent('Replaced the HDMI switcher in room 401')
@@ -426,5 +429,161 @@ describe('UI-07 the panel follows the Ticket when it changes elsewhere on the sc
 
     view.rerender(<StaffActions ticketId={12} meId={8} assignees={STAFF} onChanged={vi.fn()} refreshToken="b" />)
     expect(calls).toHaveLength(2) // the same token does not refetch
+  })
+})
+
+// Review of #74 / #77: the form must keep what it was opened with.
+describe('UI-05 / UI-06 an open form keeps the version and the values it was opened with', () => {
+  it('after the list is fetched again with a newer version, Save still sends the old version and the banner appears', async () => {
+    let version = 2
+    const calls: Call[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const method = init?.method ?? 'GET'
+        calls.push({ url, method, body: init?.body ? JSON.parse(String(init.body)) : null })
+        if (method === 'GET') return { ok: true, status: 200, json: async () => ({ workable: true, actions: [action({ version })] }) }
+        return { ok: false, status: 409, json: async () => ({ error: 'x', code: 'STALE_UPDATE' }) }
+      }),
+    )
+    const view = render(<StaffActions ticketId={12} meId={8} assignees={STAFF} onChanged={vi.fn()} refreshToken="a" />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit action 41' }))
+    const form = screen.getByRole('form', { name: 'Save changes' })
+    await userEvent.type(within(form).getByLabelText('Description'), ' (my wording)')
+
+    version = 3 // somebody else saved; then something moves the ticket on this screen
+    view.rerender(<StaffActions ticketId={12} meId={8} assignees={STAFF} onChanged={vi.fn()} refreshToken="b" />)
+    await waitFor(() => expect(calls.filter((c) => c.method === 'GET')).toHaveLength(2))
+    await userEvent.click(within(screen.getByRole('form', { name: 'Save changes' })).getByRole('button', { name: 'Save changes' }))
+
+    const patch = calls.find((c) => c.method === 'PATCH')!
+    expect(patch.body!.version).toBe(2) // not 3: the server must refuse, not silently overwrite
+    expect(await screen.findByText('This action was changed by someone else. Reload to see the latest.')).toBeInTheDocument()
+    expect(screen.getByLabelText('Description')).toHaveValue('Replaced the HDMI switcher in room 401 (my wording)')
+  })
+
+  it('a Complete panel left open also keeps its version', async () => {
+    let version = 1
+    const calls: Call[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const method = init?.method ?? 'GET'
+        calls.push({ url, method, body: init?.body ? JSON.parse(String(init.body)) : null })
+        if (method === 'GET') return { ok: true, status: 200, json: async () => ({ workable: true, actions: [action({ version })] }) }
+        return { ok: false, status: 409, json: async () => ({ error: 'x', code: 'STALE_UPDATE' }) }
+      }),
+    )
+    const view = render(<StaffActions ticketId={12} meId={8} assignees={STAFF} onChanged={vi.fn()} refreshToken="a" />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Complete action 41' }))
+    await userEvent.type(screen.getByLabelText('Result'), 'Done')
+    version = 4
+    view.rerender(<StaffActions ticketId={12} meId={8} assignees={STAFF} onChanged={vi.fn()} refreshToken="b" />)
+    await waitFor(() => expect(calls.filter((c) => c.method === 'GET')).toHaveLength(2))
+    await userEvent.click(screen.getByRole('button', { name: 'Mark completed' }))
+    expect(calls.find((c) => c.method === 'POST')!.body).toMatchObject({ version: 1, result: 'Done' })
+  })
+
+  it('editing only the description does not send the time, so its seconds survive', async () => {
+    const api = stubApi([action({ actionAt: '2026-11-01T03:07:42.000Z', version: 1 })], { write: () => ({ status: 200, body: action({ version: 2 }) }) })
+    renderStaff()
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit action 41' }))
+    const form = screen.getByRole('form', { name: 'Save changes' })
+    await userEvent.type(within(form).getByLabelText('Description'), ' again')
+    await userEvent.click(within(form).getByRole('button', { name: 'Save changes' }))
+    await waitFor(() => expect(api.writes()).toHaveLength(1))
+    expect(api.writes()[0].body).not.toHaveProperty('actionAt')
+  })
+
+  it('saving an edit with nothing changed sends nothing and says so', async () => {
+    const api = stubApi([action()])
+    renderStaff()
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit action 41' }))
+    const form = screen.getByRole('form', { name: 'Save changes' })
+    await userEvent.click(within(form).getByRole('button', { name: 'Save changes' }))
+    expect(await within(form).findByText('Nothing was changed.')).toBeInTheDocument()
+    expect(api.writes()).toHaveLength(0)
+  })
+})
+
+describe('UI-03 a retry that the server answers with the earlier Action', () => {
+  it('does not report a save when the earlier text differs from the corrected text', async () => {
+    const api = stubApi([], { write: () => ({ status: 200, body: action({ description: 'Swapped the cabel' }) }) })
+    renderStaff()
+    const form = await openCreate()
+    await userEvent.type(within(form).getByLabelText('Description'), 'Swapped the cable')
+    await userEvent.click(within(form).getByRole('button', { name: 'Save action' }))
+    expect(await within(form).findByRole('alert')).toHaveTextContent('already saved with the earlier text')
+    expect(screen.queryByText('Saved')).not.toBeInTheDocument()
+    expect(within(form).getByLabelText('Description')).toHaveValue('Swapped the cable')
+    expect(api.writes()).toHaveLength(1)
+  })
+
+  it('closes normally when the earlier Action has the same text (a plain retry)', async () => {
+    stubApi([], { write: () => ({ status: 200, body: action({ description: 'Swapped the cable' }) }) })
+    renderStaff()
+    const form = await openCreate()
+    await userEvent.type(within(form).getByLabelText('Description'), 'Swapped the cable')
+    await userEvent.click(within(form).getByRole('button', { name: 'Save action' }))
+    expect(await screen.findByText('Saved')).toBeInTheDocument()
+    expect(screen.queryByRole('form', { name: 'Save action' })).not.toBeInTheDocument()
+  })
+})
+
+describe('UI-02 a 400 about a field the form does not draw', () => {
+  it('shows its message in the banner instead of nowhere', async () => {
+    stubApi([], { write: () => ({ status: 400, body: { error: 'Send at least one field to change.', code: 'VALIDATION_ERROR', field: 'body' } }) })
+    renderStaff()
+    const form = await openCreate()
+    await userEvent.type(within(form).getByLabelText('Description'), 'Swapped the cable')
+    await userEvent.click(within(form).getByRole('button', { name: 'Save action' }))
+    expect(await within(form).findByRole('alert')).toHaveTextContent('Send at least one field to change.')
+  })
+})
+
+// STYLE-01 (AC-40, ui-spec §2): status and follow-up are never conveyed by colour alone.
+describe('STYLE-01 Action status and follow-up badges', () => {
+  it('carry text and a symbol, and the class the stylesheet colours', async () => {
+    stubApi([
+      action({ id: 1, status: 'OPEN', followUpRequired: true, followUpNote: 'Look again' }),
+      action({ id: 2, status: 'COMPLETED', result: 'Done' }),
+      action({ id: 3, status: 'CANCELLED', result: 'Not needed' }),
+    ])
+    renderStaff()
+    const ops = await region()
+    await within(ops).findAllByRole('listitem')
+    expect(within(ops).getByText('Open')).toHaveClass('tt-badge', 'tt-badge-action-OPEN')
+    expect(within(ops).getByText('✓ Completed')).toHaveClass('tt-badge', 'tt-badge-action-COMPLETED')
+    expect(within(ops).getByText('✕ Cancelled')).toHaveClass('tt-badge', 'tt-badge-action-CANCELLED')
+    expect(within(ops).getByText('! Follow-up needed')).toHaveClass('tt-badge', 'tt-badge-followup-NEEDED')
+  })
+
+  it('the stylesheet defines a colour for every one of those classes', () => {
+    const css = readFileSync(resolve(__dirname, '../../src/index.css'), 'utf-8')
+    for (const cls of ['tt-badge-action-OPEN', 'tt-badge-action-COMPLETED', 'tt-badge-action-CANCELLED', 'tt-badge-followup-NEEDED']) {
+      expect(css, cls).toMatch(new RegExp(`\\.${cls}\\s*\\{[^}]*color:`))
+    }
+  })
+})
+
+// STYLE-02 (AC-40, ui-spec §10): the new controls keep the visible focus style and can be reached by keyboard.
+// The ring itself is measured in a real browser by RESP-01; this guards the two ways code removes it.
+describe('STYLE-02 the new controls keep the focus style', () => {
+  it('nothing in the client sources removes the outline, and no new control is taken out of the tab order', () => {
+    const files = ['../../src/index.css', '../../src/actions/ActionsTaken.tsx', '../../src/dashboard/parts.tsx', '../../src/dashboard/StaffDashboard.tsx', '../../src/dashboard/RequesterDashboard.tsx']
+    for (const f of files) {
+      const text = readFileSync(resolve(__dirname, f), 'utf-8')
+      expect(text, `${f} removes the outline`).not.toMatch(/outline\s*:\s*(none|0)\b/)
+      expect(text, `${f} sets tabIndex -1`).not.toMatch(/tabIndex=\{?-1/i)
+    }
+  })
+
+  it('every control of the create form is a native focusable element', async () => {
+    stubApi([])
+    renderStaff()
+    const form = await openCreate()
+    const controls = form.querySelectorAll('input, select, textarea, button')
+    expect(controls.length).toBeGreaterThanOrEqual(7)
+    for (const el of controls) expect(el).not.toHaveAttribute('tabindex', '-1')
   })
 })
