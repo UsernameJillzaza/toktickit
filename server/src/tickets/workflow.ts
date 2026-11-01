@@ -29,6 +29,17 @@ export function isTicketStatus(value: unknown): value is TicketStatus {
 }
 
 /** BR-20: CLOSED and CANCELLED can't change owner, priority or status any more. */
+/**
+ * Lab 4 BR-11: Actions Taken can only change while the Ticket is workable.
+ * Resolved, Closed and Cancelled are not — which is what keeps "Resolved means
+ * no Open Action" true after the resolution gate has let a Ticket through.
+ */
+const WORKABLE: ReadonlySet<TicketStatus> = new Set(['NEW', 'OPEN', 'IN_PROGRESS', 'WAITING_FOR_REQUESTER', 'REOPENED'])
+
+export function isWorkable(status: TicketStatus): boolean {
+  return WORKABLE.has(status)
+}
+
 export function isTerminal(status: TicketStatus): boolean {
   return status === 'CLOSED' || status === 'CANCELLED'
 }

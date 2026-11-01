@@ -90,7 +90,7 @@ Edits an **Open** Action. Request: `version` (required, the number the user saw)
 | Status | Body | When |
 | --- | --- | --- |
 | 200 | Action | updated, `version` + 1, Ticket's Last Updated moves |
-| 400 | `VALIDATION_ERROR` / `PERFORMER_INVALID` | as for create; `version` missing or not an integer; an unknown field |
+| 400 | `VALIDATION_ERROR` / `PERFORMER_INVALID` | as for create; `version` missing or not an integer; an unknown field; no field to change at all (`field: body`, "Send at least one field to change.") |
 | 404 | `NOT_FOUND` | no such Ticket, or the Action does not belong to this Ticket |
 | 409 | `ACTION_FINAL` | the Action is Completed or Cancelled |
 | 409 | `TICKET_NOT_WORKABLE` | the Ticket is Resolved, Closed or Cancelled |

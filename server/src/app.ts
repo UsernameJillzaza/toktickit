@@ -10,6 +10,7 @@ import { authRouter } from './auth/routes'
 import { staffRouter } from './staff/routes'
 import { adminRouter } from './admin/routes'
 import { conversationRouter } from './tickets/conversation'
+import { requesterActionsRouter } from './actions/routes'
 import { generateTicketNumber } from './ticketNumber'
 import type { Priority } from './generated/prisma/client'
 import {
@@ -32,6 +33,7 @@ app.use('/api/auth', authRouter)
 app.use('/api/staff', staffRouter)
 app.use('/api/admin', adminRouter)
 app.use('/api/tickets', conversationRouter)
+app.use('/api/tickets', requesterActionsRouter)
 
 // Liveness landing route.
 app.get('/', (_req, res) => {

@@ -72,6 +72,10 @@ export async function cleanupTestUsers() {
   const byTicketOrAuthor = { OR: [{ ticketId: { in: ticketIds } }, { authorId: { in: ids } }] }
   await prisma.publicComment.deleteMany({ where: byTicketOrAuthor })
   await prisma.internalNote.deleteMany({ where: byTicketOrAuthor })
+  // Lab 4: Actions Taken reference the ticket and two users (RESTRICT).
+  await prisma.actionTaken.deleteMany({
+    where: { OR: [{ ticketId: { in: ticketIds } }, { performedById: { in: ids } }, { createdById: { in: ids } }] },
+  })
   if (ticketIds.length > 0) {
     await prisma.attachment.deleteMany({ where: { ticketId: { in: ticketIds } } })
     await prisma.ticket.deleteMany({ where: { id: { in: ticketIds } } })
