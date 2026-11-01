@@ -106,17 +106,18 @@ describe('UI-11 the status request carries expectedUpdatedAt', () => {
     await waitFor(() => expect(statusPuts(fetchMock)).toEqual([{ status: 'RESOLVED', expectedUpdatedAt: FIRST_STAMP }]))
   })
 
-  it('shows a stale-update answer under the status control and loads the latest ticket', async () => {
-    const message = 'This ticket was changed by someone else. Reload to see the latest.'
-    const fetchMock = stubApi([detail(), detail({ updatedAt: NEWER_STAMP })], () => ({ status: 409, body: { error: message, code: 'STALE_UPDATE' } }))
+  it('shows a stale-update answer with Reload, keeps the choice, and loads the latest ticket only on Reload', async () => {
+    const fetchMock = stubApi([detail(), detail({ updatedAt: NEWER_STAMP })], () => ({ status: 409, body: { error: 'This ticket was changed by someone else. Reload to see the latest.', code: 'STALE_UPDATE' } }))
     renderDetail()
     const ops = await screen.findByRole('region', { name: 'Operations' })
     await chooseStatus(ops, 'WAITING_FOR_REQUESTER')
-    await waitFor(() => expect(ticketLoads(fetchMock)).toBeGreaterThanOrEqual(2))
-    // The reload may remount the Operations card, so look it up again
-    // instead of using the old element.
-    const fresh = await screen.findByRole('region', { name: 'Operations' })
-    expect(await within(fresh).findByText(message)).toBeInTheDocument()
+    expect(await within(ops).findByText('This ticket changed. Reload to continue.')).toBeInTheDocument()
+    expect(within(ops).getByLabelText('Change status')).toHaveValue('WAITING_FOR_REQUESTER') // choice kept
+    expect(ticketLoads(fetchMock)).toBe(1) // nothing reloaded behind the user's back
+
+    await userEvent.click(within(ops).getByRole('button', { name: 'Reload' }))
+    await waitFor(() => expect(ticketLoads(fetchMock)).toBe(2))
+    expect(within(ops).queryByText('This ticket changed. Reload to continue.')).not.toBeInTheDocument()
   })
 
   it('shows the gate’s answer with its reasons in plain words', async () => {
@@ -182,15 +183,83 @@ describe('UI-11 a refetch that only moves updatedAt keeps what the user picked',
     await waitFor(() => expect(statusPuts(fetchMock)).toEqual([{ status: 'WAITING_FOR_REQUESTER', expectedUpdatedAt: NEWER_STAMP }]))
   })
 
-  it('still resets the controls when the status really changed under the user', async () => {
-    const message = 'This ticket was changed by someone else. Reload to see the latest.'
-    stubApi([detail(), detail({ currentStatus: 'WAITING_FOR_REQUESTER', updatedAt: NEWER_STAMP, allowedTransitions: ['IN_PROGRESS', 'RESOLVED', 'CANCELLED'] })], () => ({ status: 409, body: { error: message, code: 'STALE_UPDATE' } }))
+  it('still resets the controls when Reload shows the status really changed under the user', async () => {
+    stubApi([detail(), detail({ currentStatus: 'WAITING_FOR_REQUESTER', updatedAt: NEWER_STAMP, allowedTransitions: ['IN_PROGRESS', 'RESOLVED', 'CANCELLED'] })], () => ({ status: 409, body: { error: 'x', code: 'STALE_UPDATE' } }))
+    renderDetail()
+    const ops = await screen.findByRole('region', { name: 'Operations' })
+    await chooseStatus(ops, 'RESOLVED')
+    await userEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Confirm' }))
+    await userEvent.click(await within(ops).findByRole('button', { name: 'Reload' }))
+    const fresh = await screen.findByRole('region', { name: 'Operations' })
+    await waitFor(() => expect(within(fresh).getByText('Status:').parentElement).toHaveTextContent('Waiting for Requester'))
+    expect(within(fresh).getByLabelText('Change status')).toHaveValue('')
+  })
+})
+
+// UI-09, UI-10, UI-12 (FR-08, FR-09, AC-18, AC-21, AC-24)
+const BLOCKED = { canResolve: false, canCancel: false, reasons: ['NO_COMPLETED_ACTION'] }
+
+describe('UI-09 the resolution hint and the status options', () => {
+  it('offers exactly the options the API returned', async () => {
+    stubApi([detail({ allowedTransitions: ['IN_PROGRESS', 'CANCELLED'] })])
+    renderDetail()
+    const ops = await screen.findByRole('region', { name: 'Operations' })
+    const options = within(within(ops).getByLabelText('Change status')).getAllByRole('option').map((o) => o.textContent)
+    expect(options).toEqual(['Choose…', 'In Progress', 'Cancelled'])
+  })
+
+  it('explains why Resolved is not possible yet, with the specific reasons', async () => {
+    stubApi([detail({ resolution: { ...BLOCKED, reasons: ['NO_COMPLETED_ACTION', 'OPEN_ACTIONS'] }, actionCounts: { open: 1, completed: 0, cancelled: 0 } })])
+    renderDetail()
+    const ops = await screen.findByRole('region', { name: 'Operations' })
+    expect(within(ops).getByText('Resolved needs at least one completed action and no open actions.')).toBeInTheDocument()
+    expect(within(ops).getByText('No action has been completed yet.')).toBeInTheDocument()
+    expect(within(ops).getByText('1 action is still open.')).toBeInTheDocument()
+    expect(within(ops).getByLabelText('Change status')).toHaveAccessibleDescription(/at least one completed action/)
+  })
+
+  it('shows no hint when the ticket can be resolved, or when Resolved is not an option', async () => {
+    stubApi([detail({ resolution: { canResolve: true, canCancel: true, reasons: [] } })])
+    const first = renderDetail()
+    await screen.findByRole('region', { name: 'Operations' })
+    expect(screen.queryByText(/Resolved needs at least one/)).not.toBeInTheDocument()
+    first.unmount()
+
+    stubApi([detail({ resolution: BLOCKED, allowedTransitions: ['IN_PROGRESS'] })])
+    renderDetail()
+    await screen.findByRole('region', { name: 'Operations' })
+    expect(screen.queryByText(/Resolved needs at least one/)).not.toBeInTheDocument()
+  })
+})
+
+describe('UI-10 a blocked status change', () => {
+  it('shows the reasons next to the control and keeps the chosen status', async () => {
+    const message = 'This ticket cannot be resolved yet: it has no completed action yet.'
+    stubApi([detail()], () => ({ status: 409, body: { error: message, code: 'RESOLUTION_BLOCKED', reasons: ['NO_COMPLETED_ACTION'] } }))
+    renderDetail()
+    const ops = await screen.findByRole('region', { name: 'Operations' })
+    await chooseStatus(ops, 'RESOLVED')
+    await userEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Confirm' }))
+    expect(await within(ops).findByText(message)).toBeInTheDocument()
+    expect(within(ops).getByLabelText('Change status')).toHaveValue('RESOLVED')
+  })
+})
+
+describe('UI-12 a successful status change refreshes the summary', () => {
+  it('updates the status badge, the options and the hint from the response', async () => {
+    stubApi([detail()], () => ({
+      status: 200,
+      body: detail({ currentStatus: 'RESOLVED', updatedAt: NEWER_STAMP, allowedTransitions: ['CLOSED', 'REOPENED'], resolution: BLOCKED }),
+    }))
     renderDetail()
     const ops = await screen.findByRole('region', { name: 'Operations' })
     await chooseStatus(ops, 'RESOLVED')
     await userEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Confirm' }))
     const fresh = await screen.findByRole('region', { name: 'Operations' })
-    await waitFor(() => expect(within(fresh).getByText('Status:').parentElement).toHaveTextContent('Waiting for Requester'))
-    expect(within(fresh).getByLabelText('Change status')).toHaveValue('')
+    await waitFor(() => expect(within(fresh).getByText('Status:').parentElement).toHaveTextContent('Resolved'))
+    const options = within(within(fresh).getByLabelText('Change status')).getAllByRole('option').map((o) => o.textContent)
+    expect(options).toEqual(['Choose…', 'Closed', 'Reopened'])
+    expect(screen.getAllByText('Resolved').length).toBeGreaterThan(0) // heading badge too
+    expect(screen.queryByText(/Resolved needs at least one/)).not.toBeInTheDocument() // Resolved is no longer an option
   })
 })
