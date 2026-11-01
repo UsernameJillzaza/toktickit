@@ -263,3 +263,35 @@ describe('UI-12 a successful status change refreshes the summary', () => {
     expect(screen.queryByText(/Resolved needs at least one/)).not.toBeInTheDocument() // Resolved is no longer an option
   })
 })
+
+// Found by E2E-02: Reload after a stale change refreshed the ticket but left the
+// comments and notes as they were, so the other person's new comment stayed hidden.
+describe('UI-11 Reload refreshes the whole screen', () => {
+  it('fetches the internal notes and the public comments again, not only the ticket', async () => {
+    const fetchMock = stubApi([detail(), detail({ updatedAt: NEWER_STAMP })], () => ({ status: 409, body: { error: 'x', code: 'STALE_UPDATE' } }))
+    renderDetail()
+    const ops = await screen.findByRole('region', { name: 'Operations' })
+    await waitFor(() => expect(listGets(fetchMock, '/api/staff/tickets/12/notes')).toBe(1))
+    expect(listGets(fetchMock, '/api/tickets/12/comments')).toBe(1)
+
+    await chooseStatus(ops, 'WAITING_FOR_REQUESTER')
+    await userEvent.click(await within(ops).findByRole('button', { name: 'Reload' }))
+
+    await waitFor(() => expect(listGets(fetchMock, '/api/staff/tickets/12/notes')).toBe(2))
+    expect(listGets(fetchMock, '/api/tickets/12/comments')).toBe(2)
+  })
+
+  it('does not throw away a note being typed when a post moves Last Updated', async () => {
+    stubApi([detail(), detail({ updatedAt: NEWER_STAMP })])
+    renderDetail()
+    await screen.findByRole('region', { name: 'Operations' })
+    await userEvent.type(screen.getByLabelText('New public comment'), 'A comment')
+    await userEvent.click(screen.getByRole('button', { name: 'Post public comment' }))
+    await userEvent.type(screen.getByLabelText('New internal note'), 'half-written note')
+    await new Promise((r) => setTimeout(r, 60)) // the refetch after the post lands
+    expect(screen.getByLabelText('New internal note')).toHaveValue('half-written note')
+  })
+})
+
+const listGets = (fetchMock: ReturnType<typeof stubApi>, url: string) =>
+  fetchMock.mock.calls.filter(([u, init]) => u === url && !init?.method).length

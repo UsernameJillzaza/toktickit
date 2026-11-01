@@ -477,12 +477,19 @@ export function StaffActions({
   meId,
   assignees,
   onChanged,
+  refreshToken,
 }: {
   ticketId: number
   meId: number
   assignees: Assignee[]
   /** A change succeeded: refresh the Ticket summary (status, Last Updated, hint). */
   onChanged: () => void
+  /**
+   * Changes whenever the Ticket changed elsewhere on the screen (a status
+   * change, a reload): the list and `workable` are fetched again, so "New
+   * action" is disabled the moment the Ticket is Resolved (BR-11).
+   */
+  refreshToken?: string
 }) {
   const headingId = useId()
   const base = `/api/staff/tickets/${ticketId}/actions`
@@ -510,7 +517,7 @@ export function StaffActions({
 
   useEffect(() => {
     load()
-  }, [load])
+  }, [load, refreshToken])
 
   useEffect(() => {
     if (!saved) return
