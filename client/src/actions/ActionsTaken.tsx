@@ -110,7 +110,7 @@ export function RequesterActions({ ticketId }: { ticketId: number }) {
   }, [load])
 
   return (
-    <section className="mt-4" aria-labelledby={headingId} aria-busy={state === 'loading'}>
+    <section className="mt-4" aria-label="Actions taken" aria-busy={state === 'loading'}>
       <h2 id={headingId} className="h5">
         Work done on your ticket
       </h2>
@@ -467,7 +467,15 @@ function FinishPanel({
 
 // --------------------------------------------------------------- staff panel
 
-type Mode = { kind: 'none' } | { kind: 'create' } | { kind: 'edit'; id: number } | { kind: 'finish'; id: number; how: 'complete' | 'cancel' }
+// A form keeps the `version` (and, for an edit, the values) it was opened with.
+// The list may be fetched again while the form is open (the ticket changed
+// elsewhere on the screen); saving must still name the version the user saw, so
+// the server refuses the save if someone else changed the Action meanwhile.
+type Mode =
+  | { kind: 'none' }
+  | { kind: 'create' }
+  | { kind: 'edit'; id: number; version: number; initial: Values }
+  | { kind: 'finish'; id: number; how: 'complete' | 'cancel'; version: number }
 
 // Server answers that mean "what you are looking at is out of date".
 const CONFLICT_CODES = new Set(['STALE_UPDATE', 'ACTION_FINAL'])
@@ -558,8 +566,9 @@ export function StaffActions({
       }
     }
     if (res.status === 400 && data.field) {
-      const field = data.field as FieldName | 'result' | 'version'
-      return { ok: false, fieldErrors: { [field === 'result' ? 'description' : field]: message } as FieldErrors }
+      const field = data.field === 'result' ? 'description' : (data.field as string)
+      // A field the form draws gets its message under it; any other (version, body) goes to the banner.
+      if ((FIELD_ORDER as string[]).includes(field)) return { ok: false, fieldErrors: { [field]: message } as FieldErrors }
     }
     return { ok: false, banner: message }
   }
@@ -587,14 +596,39 @@ export function StaffActions({
     if (!v.attachmentNotes.trim()) delete body.attachmentNotes
     const res = await send(base, 'POST', body)
     if (res && res.ok) {
+      // 200 (not 201) means this requestKey was already used: the server returned the
+      // Action it saved earlier and ignored what was typed now (BR-16). If the text
+      // differs, say so instead of reporting a save that did not take the correction.
+      if (res.status === 200) {
+        const earlier = await res.json().catch(() => null)
+        if (earlier && earlier.description !== v.description.trim()) {
+          await load()
+          return {
+            ok: false,
+            banner: 'This action was already saved with the earlier text. Close this form and use Edit on it to change the wording.',
+          }
+        }
+      }
       await afterSuccess()
       return { ok: true }
     }
     return failure(res)
   }
 
-  async function edit(action: ActionTaken, v: Values): Promise<Outcome> {
-    const res = await send(`${base}/${action.id}`, 'PATCH', { version: action.version, ...toBody(v) })
+  /** Sends only what the user changed, so an edit never rewrites a field it did not touch (such as the seconds of the time). */
+  async function edit(m: Extract<Mode, { kind: 'edit' }>, v: Values): Promise<Outcome> {
+    const was = m.initial
+    const body: Record<string, unknown> = { version: m.version }
+    if (v.description.trim() !== was.description.trim()) body.description = v.description.trim()
+    if (v.actionAt !== was.actionAt) body.actionAt = new Date(v.actionAt).toISOString()
+    if (v.performedById !== was.performedById) body.performedById = Number(v.performedById)
+    if (v.followUpRequired !== was.followUpRequired || (v.followUpRequired && v.followUpNote.trim() !== was.followUpNote.trim())) {
+      body.followUpRequired = v.followUpRequired
+      body.followUpNote = v.followUpRequired ? v.followUpNote.trim() : null
+    }
+    if (v.attachmentNotes.trim() !== was.attachmentNotes.trim()) body.attachmentNotes = v.attachmentNotes.trim() || null
+    if (Object.keys(body).length === 1) return { ok: false, banner: 'Nothing was changed.' }
+    const res = await send(`${base}/${m.id}`, 'PATCH', body)
     if (res && res.ok) {
       await afterSuccess()
       return { ok: true }
@@ -602,8 +636,8 @@ export function StaffActions({
     return failure(res)
   }
 
-  async function finish(action: ActionTaken, how: 'complete' | 'cancel', result: string): Promise<Outcome> {
-    const res = await send(`${base}/${action.id}/${how}`, 'POST', { version: action.version, result })
+  async function finish(m: Extract<Mode, { kind: 'finish' }>, result: string): Promise<Outcome> {
+    const res = await send(`${base}/${m.id}/${m.how}`, 'POST', { version: m.version, result })
     if (res && res.ok) {
       await afterSuccess()
       return { ok: true }
@@ -680,10 +714,10 @@ export function StaffActions({
                   <li key={a.id}>
                     <ActionForm
                       idPrefix={`edit-action-${a.id}`}
-                      initial={valuesOf(a)}
+                      initial={mode.initial}
                       assignees={assignees}
                       submitLabel="Save changes"
-                      onSubmit={(v) => edit(a, v)}
+                      onSubmit={(v) => edit(mode, v)}
                       onCancel={() => setMode({ kind: 'none' })}
                       onReload={reload}
                     />
@@ -695,19 +729,19 @@ export function StaffActions({
                 <ActionCard key={a.id} action={a}>
                   {a.status === 'OPEN' && !finishing && (
                     <div className="d-flex flex-wrap gap-2 mt-2">
-                      <button type="button" className="btn btn-sm btn-outline-secondary" aria-label={`Edit action ${a.id}`} onClick={() => setMode({ kind: 'edit', id: a.id })}>
+                      <button type="button" className="btn btn-sm btn-outline-secondary" aria-label={`Edit action ${a.id}`} onClick={() => setMode({ kind: 'edit', id: a.id, version: a.version, initial: valuesOf(a) })}>
                         Edit
                       </button>
-                      <button type="button" className="btn btn-sm btn-outline-success" aria-label={`Complete action ${a.id}`} onClick={() => setMode({ kind: 'finish', id: a.id, how: 'complete' })}>
+                      <button type="button" className="btn btn-sm btn-outline-success" aria-label={`Complete action ${a.id}`} onClick={() => setMode({ kind: 'finish', id: a.id, how: 'complete', version: a.version })}>
                         Complete
                       </button>
-                      <button type="button" className="btn btn-sm btn-outline-danger" aria-label={`Cancel action ${a.id}`} onClick={() => setMode({ kind: 'finish', id: a.id, how: 'cancel' })}>
+                      <button type="button" className="btn btn-sm btn-outline-danger" aria-label={`Cancel action ${a.id}`} onClick={() => setMode({ kind: 'finish', id: a.id, how: 'cancel', version: a.version })}>
                         Cancel
                       </button>
                     </div>
                   )}
-                  {finishing && (
-                    <FinishPanel kind={finishing} onSubmit={(result) => finish(a, finishing, result)} onClose={() => setMode({ kind: 'none' })} onReload={reload} />
+                  {finishing && mode.kind === 'finish' && (
+                    <FinishPanel kind={finishing} onSubmit={(result) => finish(mode, result)} onClose={() => setMode({ kind: 'none' })} onReload={reload} />
                   )}
                 </ActionCard>
               )
