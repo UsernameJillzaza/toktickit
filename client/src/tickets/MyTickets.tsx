@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { apiFetch } from '../api'
+import { PriorityBadge, StatusBadge } from '../components/Badges'
 import { STATUS_LABELS } from '../components/labels'
 
 type TicketRow = {
@@ -205,10 +206,10 @@ export default function MyTickets() {
                     <td>{t.summary}</td>
                     <td>{t.category?.name ?? '—'}</td>
                     <td>
-                      <span className="badge bg-secondary">{t.requestedPriority}</span>
+                      <PriorityBadge priority={t.requestedPriority} />
                     </td>
                     <td>
-                      <span className="badge bg-success">{t.currentStatus}</span>
+                      <StatusBadge status={t.currentStatus} />
                     </td>
                   </tr>
                 ))}
@@ -228,8 +229,8 @@ export default function MyTickets() {
                   <div className="d-flex justify-content-between align-items-center">
                     <span className="text-secondary small">{t.category?.name ?? '—'}</span>
                     <span className="d-flex gap-1">
-                      <span className="badge bg-secondary">{t.requestedPriority}</span>
-                      <span className="badge bg-success">{t.currentStatus}</span>
+                      <PriorityBadge priority={t.requestedPriority} />
+                      <StatusBadge status={t.currentStatus} />
                     </span>
                   </div>
                 </div>
