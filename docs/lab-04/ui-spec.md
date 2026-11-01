@@ -140,20 +140,20 @@ As Lab 2 §10 and Lab 3 §11, plus:
 
 ## 11. Visual and Accessibility Inspection Checklist
 
-Completed in L4-7/L4-8 from real screens and tests only; each tick names its evidence. Unticked now.
+Completed in L4-8 from real screens and tests only; each tick names its evidence and, where the evidence is a person looking rather than an assertion, says so. Screenshots are under `artifacts/lab-04/screenshots/`.
 
-- [ ] Dashboard (all roles) matches the Zen Green tokens and the shell of Labs 2–3
-- [ ] Cards: label, value, accessible "View" link; zero and empty states shown
-- [ ] Drill-down opens the right filtered list and the list count equals the card
-- [ ] Actions Taken: list, create mode and view/edit mode distinct and consistent; Complete/Cancel panels clear
-- [ ] Editable versus read-only fields clearly different (Open vs Completed/Cancelled; Requester view)
-- [ ] Validation messages directly under the field; focus moves to the first invalid field
-- [ ] Status and follow-up never conveyed by colour alone
-- [ ] Visible keyboard focus on the new controls (automatic check on the new forms, shared style elsewhere — state exactly what was checked)
-- [ ] No clipped text, overlapping controls or horizontal scroll at 1280 / 820 / 375 px
-- [ ] Mobile buttons at least 44 px tall
-- [ ] Conflict, forbidden, not-found and safe-failure states consistent with Labs 2–3
-- [ ] No console errors, broken links, placeholder text or unfinished controls
+- [x] Dashboard (all roles) matches the Zen Green tokens and the shell of Labs 2–3. *Evidence:* `artifacts/lab-04/screenshots/requester-dashboard/dashboard-desktop.png`, `artifacts/lab-04/screenshots/staff-dashboard/dashboard-desktop.png`, `artifacts/lab-04/screenshots/staff-dashboard/admin-users-card.png` (same shell, menu and badge palette as Labs 2–3). *How checked:* by eye on those screenshots; the badge classes are asserted (STYLE-01), the card colours are not asserted by a computed-style test.
+- [x] Cards: label, value, accessible "View" link; zero and empty states shown. *Evidence:* UI-13, UI-17 (each card's label, number and the "View …" link name), UI-14, UI-18 (zero cards and empty sentences), E2E-03 with `artifacts/lab-04/screenshots/requester-dashboard/dashboard-empty.png` and `artifacts/lab-04/screenshots/staff-dashboard/empty.png`.
+- [x] Drill-down opens the right filtered list and the list count equals the card. *Evidence:* API-38 (every card equals its list's `total`), UI-21, UI-22 (the URL filters and chips), E2E-03 (`artifacts/lab-04/screenshots/requester-dashboard/drill-down-result.png`, `artifacts/lab-04/screenshots/staff-dashboard/drill-down-result.png`) and `artifacts/lab-04/screenshots/staff-dashboard/metric-vs-database.png`.
+- [x] Actions Taken: list, create mode and view/edit mode distinct and consistent; Complete/Cancel panels clear. *Evidence:* E2E-01 with `artifacts/lab-04/screenshots/actions-taken/list-empty.png`, `create-form.png`, `edit.png`, `complete.png`, `cancel.png`, `different-performers.png`.
+- [x] Editable versus read-only fields clearly different (Open vs Completed/Cancelled; Requester view). *Evidence:* UI-05 and E2E-01 (Completed and Cancelled cards have no buttons), UI-08 and `artifacts/lab-04/screenshots/actions-taken/requester-read-only.png` (no form, no buttons, no Internal Note).
+- [x] Validation messages directly under the field; focus moves to the first invalid field. *Evidence:* UI-02, UI-04 and E2E-01 (`artifacts/lab-04/screenshots/actions-taken/create-validation.png`, `inactive-performer-rejected.png`: the message is under the control, `aria-invalid` is set and the control holds focus).
+- [x] Status and follow-up never conveyed by colour alone. *Evidence:* STYLE-01 (every badge has text and a symbol, and the stylesheet colours its class).
+- [x] Visible keyboard focus on the new controls. *Exactly what was checked:* RESP-01 walks the **create form of an Action** with the Tab key, in order (date and time, performed by, description, follow-up checkbox, follow-up note, attachment notes, Save, Cancel), and asserts a ring on each (`artifacts/lab-04/screenshots/actions-taken/keyboard-focus.png`); STYLE-02 asserts that no new source removes the outline or the tab stop. *Not measured:* the focus ring of the dashboard links and of the edit and Complete panels (they share the same Bootstrap styles and were not walked separately).
+- [x] No clipped text, overlapping controls or horizontal scroll at 1280 / 820 / 375 px. *Evidence:* RESP-01 asserts no horizontal overflow for both dashboards, the Administrator dashboard and both ticket screens at the three widths (`artifacts/lab-04/screenshots/.../resp-*-desktop|tablet|mobile.png`, `artifacts/lab-04/screenshots/actions-taken/list-tablet.png`, `list-mobile.png`, `create-form-mobile.png`, `complete-mobile.png`). *How checked:* overflow is asserted; "no clipped text and no overlapping controls" is by eye on those screenshots, not asserted.
+- [x] Mobile buttons at least 44 px tall. *Evidence:* RESP-01 measures every button and the links inside dashboard cards at 375 px, including the create form, the edit form and the Complete panel open. The dashboard links failed this check until a fix in L4-8 (Jakkarin's review of PR #77).
+- [x] Conflict, forbidden, not-found and safe-failure states consistent with Labs 2–3. *Evidence:* conflict: UI-06, UI-11, E2E-01 `artifacts/lab-04/screenshots/actions-taken/stale-conflict.png`, E2E-02 `artifacts/lab-04/screenshots/actions-taken/status-stale-conflict.png`; resolution blocked: `artifacts/lab-04/screenshots/actions-taken/resolution-blocked.png`; forbidden: UI-15 and E2E-03; safe failure: UI-15, UI-19, `artifacts/lab-04/screenshots/staff-dashboard/failure.png`; loading: `artifacts/lab-04/screenshots/staff-dashboard/loading.png`. *Not-found:* an Action or Ticket that no longer exists cannot be reached through the screens (there is no delete, BR-10), and the Lab 3 Page-not-found screen is unchanged and is part of the E2E-04 walk.
+- [x] No console errors, broken links, placeholder text or unfinished controls. *Evidence:* E2E-04 walks every reachable page of each role and fails on any of them; it also found and led to the fix of the raw status and priority codes that My Tickets still printed.
 
 ## 12. Screenshot paths
 

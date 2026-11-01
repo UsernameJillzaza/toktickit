@@ -246,14 +246,14 @@ Each AC maps to at least one planned test in [tests.md](tests.md) Section 3.
 
 ## 10. Definition of Done (Product)
 
-- [ ] Every FR, BR and AC above is implemented, and each AC has a passing automated test listed in `tests.md`
-- [ ] All new endpoints enforce authorization on the backend; each row of 5.5 is tested at the API
-- [ ] Resolution and cancel gates tested by direct API calls, not only through the UI
-- [ ] Migration applied to a Lab 3 database without data loss; drift check empty; seed idempotent
-- [ ] Dashboard numbers match direct database queries (tests and a screenshot pairing a card with its query result)
+- [x] Every FR, BR and AC above is implemented, and each AC has a passing automated test listed in `tests.md` (traceability table, `tests.md` §3; all 76 planned tests pass, §6)
+- [x] All new endpoints enforce authorization on the backend; each row of 5.5 is tested at the API (API-15 … API-19)
+- [x] Resolution and cancel gates tested by direct API calls, not only through the UI (API-20 … API-28)
+- [x] Migration applied to a Lab 3 database without data loss; drift check empty; seed idempotent (MIG-01 … MIG-04; drift check in `tests.md` §6; row counts in PR #72)
+- [x] Dashboard numbers match direct database queries (API-30, API-33, E2E-03 and `staff-dashboard/metric-vs-database.png`)
 - [ ] Server, client and E2E suites pass on `main`; the Lab 1–3 suites still pass
-- [ ] Zen Green consistency, responsive and accessibility checklist in `ui-spec.md` completed with evidence for each item
-- [ ] No console errors, broken links, placeholders or unfinished controls
+- [x] Zen Green consistency, responsive and accessibility checklist in `ui-spec.md` completed with evidence for each item (§11)
+- [x] No console errors, broken links, placeholders or unfinished controls (E2E-04)
 - [ ] README current; `.env` never committed
 - [ ] Every PR reviewed and approved by the peer reviewer before merge; Issues closed and the board in its final column
 - [ ] `tests.md`, `reviewer.md` and `ai-use.md` are filled from real results; screenshots in `artifacts/lab-04/screenshots/`
