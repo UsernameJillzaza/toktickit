@@ -501,7 +501,9 @@ describe('UI-05 / UI-06 an open form keeps the version and the values it was ope
     await userEvent.click(await screen.findByRole('button', { name: 'Edit action 41' }))
     const form = screen.getByRole('form', { name: 'Save changes' })
     await userEvent.click(within(form).getByRole('button', { name: 'Save changes' }))
-    expect(await within(form).findByText('Nothing was changed.')).toBeInTheDocument()
+    const note = await within(form).findByText('Nothing was changed.')
+    expect(note.closest('.alert')).toHaveClass('alert-secondary') // information, not an error
+    expect(note.closest('.alert')).not.toHaveClass('alert-danger')
     expect(api.writes()).toHaveLength(0)
   })
 })
@@ -513,20 +515,40 @@ describe('UI-03 a retry that the server answers with the earlier Action', () => 
     const form = await openCreate()
     await userEvent.type(within(form).getByLabelText('Description'), 'Swapped the cable')
     await userEvent.click(within(form).getByRole('button', { name: 'Save action' }))
-    expect(await within(form).findByRole('alert')).toHaveTextContent('already saved with the earlier text')
+    expect(await within(form).findByRole('alert')).toHaveTextContent('already saved with different details')
     expect(screen.queryByText('Saved')).not.toBeInTheDocument()
     expect(within(form).getByLabelText('Description')).toHaveValue('Swapped the cable')
     expect(api.writes()).toHaveLength(1)
   })
 
-  it('closes normally when the earlier Action has the same text (a plain retry)', async () => {
-    stubApi([], { write: () => ({ status: 200, body: action({ description: 'Swapped the cable' }) }) })
+  it('closes normally when the earlier Action has the same details (a plain retry)', async () => {
+    // A real retry sends what the first try sent, so the earlier Action has the same time.
+    stubApi([], { write: (call) => ({ status: 200, body: action({ description: 'Swapped the cable', actionAt: String(call.body!.actionAt) }) }) })
     renderStaff()
     const form = await openCreate()
     await userEvent.type(within(form).getByLabelText('Description'), 'Swapped the cable')
     await userEvent.click(within(form).getByRole('button', { name: 'Save action' }))
     expect(await screen.findByText('Saved')).toBeInTheDocument()
     expect(screen.queryByRole('form', { name: 'Save action' })).not.toBeInTheDocument()
+  })
+})
+
+describe('UI-03 a retry whose corrected detail is not the description', () => {
+  it('a corrected follow-up note after a lost response is not reported as saved, and the ticket summary is refreshed', async () => {
+    const earlier = (call: Call) =>
+      action({ description: 'Swapped the cable', actionAt: String(call.body!.actionAt), followUpRequired: true, followUpNote: 'Look again on Monday' })
+    const api = stubApi([], { write: (call) => ({ status: 200, body: earlier(call) }) })
+    const onChanged = renderStaff()
+    const form = await openCreate()
+    await userEvent.type(within(form).getByLabelText('Description'), 'Swapped the cable')
+    await userEvent.click(within(form).getByLabelText('Follow-up required'))
+    await userEvent.type(within(form).getByLabelText('Follow-up note'), 'Look again on Tuesday') // the correction
+    await userEvent.click(within(form).getByRole('button', { name: 'Save action' }))
+    expect(await within(form).findByRole('alert')).toHaveTextContent('already saved with different details')
+    expect(screen.queryByText('Saved')).not.toBeInTheDocument()
+    expect(within(form).getByLabelText('Follow-up note')).toHaveValue('Look again on Tuesday') // typed text kept
+    expect(onChanged).toHaveBeenCalled() // an Action exists now, so the summary and the hint must refresh
+    expect(api.writes()).toHaveLength(1)
   })
 })
 

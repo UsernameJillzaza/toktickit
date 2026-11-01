@@ -43,6 +43,22 @@ function newRequestKey() {
   return typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `k-${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
+/**
+ * True when the Action the server returned for a replayed `requestKey` is not what
+ * the form now says: any field the form sends, compared the way the form shows it
+ * (the time at the minute).
+ */
+function differsFromForm(a: ActionTaken, v: Values): boolean {
+  return (
+    a.description !== v.description.trim() ||
+    a.followUpRequired !== v.followUpRequired ||
+    (a.followUpNote ?? '') !== (v.followUpRequired ? v.followUpNote.trim() : '') ||
+    (a.attachmentNotes ?? '') !== v.attachmentNotes.trim() ||
+    String(a.performedBy.id) !== v.performedById ||
+    toLocalInput(new Date(a.actionAt)) !== v.actionAt
+  )
+}
+
 // ---------------------------------------------------------------- the card
 
 function ActionCard({ action, children }: { action: ActionTaken; children?: React.ReactNode }) {
@@ -161,7 +177,7 @@ function validate(v: Values): FieldErrors {
   return errors
 }
 
-type Outcome = { ok: true } | { ok: false; fieldErrors?: FieldErrors; banner?: string; stale?: boolean }
+type Outcome = { ok: true } | { ok: false; fieldErrors?: FieldErrors; banner?: string; stale?: boolean; info?: boolean }
 
 type FormProps = {
   idPrefix: string
@@ -180,6 +196,7 @@ function ActionForm({ idPrefix, initial, assignees, submitLabel, onSubmit, onCan
   const [errors, setErrors] = useState<FieldErrors>({})
   const [banner, setBanner] = useState<string | null>(null)
   const [stale, setStale] = useState(false)
+  const [info, setInfo] = useState(false)
   const [busy, setBusy] = useState(false)
   const busyRef = useRef(false) // a second click in the same tick must not send a second request
   const dirty = JSON.stringify(values) !== JSON.stringify(initial)
@@ -211,6 +228,7 @@ function ActionForm({ idPrefix, initial, assignees, submitLabel, onSubmit, onCan
         setErrors(outcome.fieldErrors ?? {})
         setBanner(outcome.banner ?? null)
         setStale(Boolean(outcome.stale))
+        setInfo(Boolean(outcome.info))
         if (outcome.fieldErrors) focusFirst(outcome.fieldErrors)
       }
     } finally {
@@ -341,7 +359,7 @@ function ActionForm({ idPrefix, initial, assignees, submitLabel, onSubmit, onCan
       </div>
 
       {banner && (
-        <div className="alert alert-danger py-2 mt-3 mb-0 d-flex justify-content-between align-items-center" role="alert">
+        <div className={`alert ${info ? 'alert-secondary' : 'alert-danger'} py-2 mt-3 mb-0 d-flex justify-content-between align-items-center`} role={info ? 'status' : 'alert'}>
           <span>{banner}</span>
           {stale && onReload && (
             <button type="button" className="btn btn-sm btn-outline-danger ms-2" onClick={onReload}>
@@ -601,11 +619,12 @@ export function StaffActions({
       // differs, say so instead of reporting a save that did not take the correction.
       if (res.status === 200) {
         const earlier = await res.json().catch(() => null)
-        if (earlier && earlier.description !== v.description.trim()) {
+        if (earlier && differsFromForm(earlier, v)) {
           await load()
+          onChanged() // an Action now exists: the ticket summary and the resolution hint must show it
           return {
             ok: false,
-            banner: 'This action was already saved with the earlier text. Close this form and use Edit on it to change the wording.',
+            banner: 'This action was already saved with different details. Close this form and use Edit on it to change them.',
           }
         }
       }
@@ -627,7 +646,7 @@ export function StaffActions({
       body.followUpNote = v.followUpRequired ? v.followUpNote.trim() : null
     }
     if (v.attachmentNotes.trim() !== was.attachmentNotes.trim()) body.attachmentNotes = v.attachmentNotes.trim() || null
-    if (Object.keys(body).length === 1) return { ok: false, banner: 'Nothing was changed.' }
+    if (Object.keys(body).length === 1) return { ok: false, banner: 'Nothing was changed.', info: true }
     const res = await send(`${base}/${m.id}`, 'PATCH', body)
     if (res && res.ok) {
       await afterSuccess()

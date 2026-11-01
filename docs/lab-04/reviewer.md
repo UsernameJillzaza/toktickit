@@ -1,6 +1,8 @@
 # Lab 4 — Peer Review
 
-> **Status: complete except the last two rows.** PRs #71–#77 (L4-1 … L4-7) were reviewed and approved by Jakkarin and merged into `lab4-staging` with merge commits on 2026-11-01. The documentation PR for L4-8 and the release PR (`lab4-staging` → `main`) are added to the table below when they are merged, because a record cannot list the PR that adds it with its final verdict. Every statement here was taken from the pull requests and reviews on GitHub, not from memory.
+> **Provenance of the review text.** The review comments listed under @jakkarin-promsee on #71–#78 are word for word the text of anticipated-review drafts kept in the course vault (28 of 28 inline comments; the top-level reviews begin with the same text), so they are **AI-written text that appeared under the reviewer's account**, and the columns below that say "Jakkarin's point" mean "the point made by the review comment". How the text came to be posted is stated in `ai-use.md`, "Where the review comments on #71–#78 came from". The same question applies to the comments in the section about my partner's PRs; the record does not say how they were produced and I do not state it here.
+>
+> **Status: complete except the release row.** PRs #71–#78 (L4-1 … L4-8) were reviewed and approved and merged into `lab4-staging` with merge commits on 2026-11-01. The release PR (`lab4-staging` → `main`) is added to the table below when it is merged, because a record cannot list the PR that adds it with its final verdict. The pull-request facts here (numbers, dates, verdicts, counts) were taken from GitHub, not from memory.
 
 ## My reviewer
 
@@ -12,7 +14,7 @@
 
 ## PRs my reviewer reviewed and approved for me
 
-Each PR got one top-level review that checks the Issue's acceptance criteria one by one, plus 2–4 inline comments.
+Each PR got one top-level review that checks the Issue's acceptance criteria one by one, plus 2–4 inline comments. The comments on #78 are answered in the follow-up change that follows it (the all-fields comparison on a replayed create, a neutral style for "Nothing was changed.", the limitation wording in `tests.md`, and the provenance wording of these two documents).
 
 | Issue | PR | Title | Inline comments | Verdict |
 | --- | --- | --- | --- | --- |
@@ -23,10 +25,10 @@ Each PR got one top-level review that checks the Issue's acceptance criteria one
 | #67 | [#75](https://github.com/UsernameJillzaza/toktickit/pull/75) | Dashboard APIs: Requester and IT Staff/Admin dashboards, plus the drill-down filters | 4 | Approved by @jakkarin-promsee; merged |
 | #68 | [#76](https://github.com/UsernameJillzaza/toktickit/pull/76) | Dashboard UIs and navigation: Requester and IT Staff/Admin dashboards, Dashboard as every role's home, drill-down filters | 2 | Approved by @jakkarin-promsee; merged |
 | #69 | [#77](https://github.com/UsernameJillzaza/toktickit/pull/77) | Hardening and proof: Lab 4 E2E suites, three defects they found, and screenshot evidence | 4 | Approved by @jakkarin-promsee; merged |
-| #70 | (this PR) | L4-8 Lab 4 documentation and the review follow-ups | — | added after merge |
+| #70 | [#78](https://github.com/UsernameJillzaza/toktickit/pull/78) | Lab 4 documentation and the follow-ups to the review comments on #73–#77 | 4 | Approved; merged |
 | — | (release PR) | Release Lab 4 (`lab4-staging` → `main`) | — | added after merge |
 
-Every PR was opened only after the previous one had merged, so Jakkarin reviewed them one at a time. The Lab 3 reflection release PR [#62](https://github.com/UsernameJillzaza/toktickit/pull/62) (into `main`, before Lab 4 began) was also approved by him.
+Every PR was opened only after the previous one had merged, so the reviews came one at a time. The Lab 3 reflection release PR [#62](https://github.com/UsernameJillzaza/toktickit/pull/62) (into `main`, before Lab 4 began) was also approved by him.
 
 ### Review comments I received and what I did about them
 
@@ -34,7 +36,7 @@ I did not reply to the comments on GitHub (I do not usually answer them there); 
 
 **Fixed immediately** (commit `d71856b`, "answer the review of the Actions Taken PR", before L4-3):
 
-| PR | Jakkarin's point (short) | What changed |
+| PR | The review comment's point (short) | What changed |
 | --- | --- | --- |
 | #72 `validation.ts` ([comment](https://github.com/UsernameJillzaza/toktickit/pull/72#discussion_r4434864854)) | The limits count characters, but `String.length` counts UTF-16 units, so a description of 1,001 emoji is rejected at 2,002 | The limits count with `Array.from(value).length`; BR-04 says so; a test uses emoji |
 | #72 `seed-actions.ts` ([comment](https://github.com/UsernameJillzaza/toktickit/pull/72#discussion_r4434864303)) | A seeded Ticket whose summary changes would have its Actions skipped silently, and the seed would still print "(0 new)" | The seed counts the skipped ones and warns |
@@ -43,7 +45,7 @@ I did not reply to the comments on GitHub (I do not usually answer them there); 
 
 **Fixed in L4-8** (the commits are named after the review they answer):
 
-| PR | Jakkarin's point (short) | What changed |
+| PR | The review comment's point (short) | What changed |
 | --- | --- | --- |
 | #77, `ActionsTaken.tsx` / the refresh (**a real defect I introduced**) | After the panel refetches, an open edit or Complete form sends the *newest* `version`, so a save overwrites someone else's change with no stale banner | Each form keeps the `version` (and values) it was opened with; tests: open a form, bump the version in the refetched list, save, expect the old version and the stale banner (and the same for the Complete panel). Mutation-checked |
 | #74, `ActionsTaken.tsx` | An edit sends every field, so the seconds of the time are rewritten and the Action can move in the list | An edit sends only the fields the user changed; "Nothing was changed." when none; tests |
