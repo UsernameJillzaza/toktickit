@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { render, screen, waitFor, within, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { StaffActions, RequesterActions } from '../../src/actions/ActionsTaken'
@@ -536,5 +538,52 @@ describe('UI-02 a 400 about a field the form does not draw', () => {
     await userEvent.type(within(form).getByLabelText('Description'), 'Swapped the cable')
     await userEvent.click(within(form).getByRole('button', { name: 'Save action' }))
     expect(await within(form).findByRole('alert')).toHaveTextContent('Send at least one field to change.')
+  })
+})
+
+// STYLE-01 (AC-40, ui-spec §2): status and follow-up are never conveyed by colour alone.
+describe('STYLE-01 Action status and follow-up badges', () => {
+  it('carry text and a symbol, and the class the stylesheet colours', async () => {
+    stubApi([
+      action({ id: 1, status: 'OPEN', followUpRequired: true, followUpNote: 'Look again' }),
+      action({ id: 2, status: 'COMPLETED', result: 'Done' }),
+      action({ id: 3, status: 'CANCELLED', result: 'Not needed' }),
+    ])
+    renderStaff()
+    const ops = await region()
+    await within(ops).findAllByRole('listitem')
+    expect(within(ops).getByText('Open')).toHaveClass('tt-badge', 'tt-badge-action-OPEN')
+    expect(within(ops).getByText('✓ Completed')).toHaveClass('tt-badge', 'tt-badge-action-COMPLETED')
+    expect(within(ops).getByText('✕ Cancelled')).toHaveClass('tt-badge', 'tt-badge-action-CANCELLED')
+    expect(within(ops).getByText('! Follow-up needed')).toHaveClass('tt-badge', 'tt-badge-followup-NEEDED')
+  })
+
+  it('the stylesheet defines a colour for every one of those classes', () => {
+    const css = readFileSync(resolve(__dirname, '../../src/index.css'), 'utf-8')
+    for (const cls of ['tt-badge-action-OPEN', 'tt-badge-action-COMPLETED', 'tt-badge-action-CANCELLED', 'tt-badge-followup-NEEDED']) {
+      expect(css, cls).toMatch(new RegExp(`\\.${cls}\\s*\\{[^}]*color:`))
+    }
+  })
+})
+
+// STYLE-02 (AC-40, ui-spec §10): the new controls keep the visible focus style and can be reached by keyboard.
+// The ring itself is measured in a real browser by RESP-01; this guards the two ways code removes it.
+describe('STYLE-02 the new controls keep the focus style', () => {
+  it('nothing in the client sources removes the outline, and no new control is taken out of the tab order', () => {
+    const files = ['../../src/index.css', '../../src/actions/ActionsTaken.tsx', '../../src/dashboard/parts.tsx', '../../src/dashboard/StaffDashboard.tsx', '../../src/dashboard/RequesterDashboard.tsx']
+    for (const f of files) {
+      const text = readFileSync(resolve(__dirname, f), 'utf-8')
+      expect(text, `${f} removes the outline`).not.toMatch(/outline\s*:\s*(none|0)\b/)
+      expect(text, `${f} sets tabIndex -1`).not.toMatch(/tabIndex=\{?-1/i)
+    }
+  })
+
+  it('every control of the create form is a native focusable element', async () => {
+    stubApi([])
+    renderStaff()
+    const form = await openCreate()
+    const controls = form.querySelectorAll('input, select, textarea, button')
+    expect(controls.length).toBeGreaterThanOrEqual(7)
+    for (const el of controls) expect(el).not.toHaveAttribute('tabindex', '-1')
   })
 })
