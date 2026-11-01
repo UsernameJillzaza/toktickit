@@ -51,7 +51,7 @@ const SCREENS: Screen[] = [
   { folder: 'staff-dashboard', name: 'resp-staff-dashboard', who: () => staff, path: () => '/dashboard', ready: (p) => expect(p.getByRole('group', { name: 'Unassigned' })).toBeVisible() },
   { folder: 'staff-dashboard', name: 'resp-admin-dashboard', who: () => admin, path: () => '/dashboard', ready: (p) => expect(p.getByRole('group', { name: 'Users' })).toBeVisible() },
   { folder: 'actions-taken', name: 'resp-staff-detail', who: () => staff, path: () => `/staff/tickets/${ticketId}`, ready: (p) => expect(p.getByRole('region', { name: /actions taken/i }).getByRole('listitem')).toHaveCount(2) },
-  { folder: 'actions-taken', name: 'resp-requester-detail', who: () => requester, path: () => `/tickets/${ticketId}`, ready: (p) => expect(p.getByRole('region', { name: 'Work done on your ticket' }).getByRole('listitem')).toHaveCount(2) },
+  { folder: 'actions-taken', name: 'resp-requester-detail', who: () => requester, path: () => `/tickets/${ticketId}`, ready: (p) => expect(p.getByRole('region', { name: 'Actions taken' }).getByRole('listitem')).toHaveCount(2) },
 ]
 
 for (const screen of SCREENS) {
@@ -70,7 +70,7 @@ for (const screen of SCREENS) {
 
 const shortButtons = (page: Page) =>
   page.evaluate(() =>
-    [...document.querySelectorAll('button, a.btn')]
+    [...document.querySelectorAll('button, a.btn, .tt-metric-card a')]
       .filter((el) => (el as HTMLElement).offsetParent !== null)
       .map((el) => ({ text: (el.textContent ?? '').trim().slice(0, 30), h: Math.round(el.getBoundingClientRect().height) }))
       .filter((b) => b.h < 44),

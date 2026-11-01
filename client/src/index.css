@@ -167,6 +167,16 @@ body {
   }
 }
 
+/* On a phone the links inside a dashboard card (the "View" link, the status and
+   priority rows, the list rows) are touch targets like the buttons: at least 44px. */
+@media (max-width: 767.98px) {
+  .tt-metric-card a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}
+
 /* Dashboard cards and panels (Lab 4 ui-spec §1). Hover and keyboard focus
    inside a card get the same primary-green ring. */
 .tt-metric-card {
