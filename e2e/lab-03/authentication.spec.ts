@@ -49,7 +49,8 @@ test('E2E-01 sign in: valid, wrong password, inactive account', async ({ page })
   await page.screenshot({ path: shot('authentication', 'login-inactive'), fullPage: true })
 
   await signIn(page, requester)
-  await expect(page).toHaveURL(/\/my-tickets$/)
+  // Lab 4 FR-14: every role lands on its Dashboard.
+  await expect(page).toHaveURL(/\/dashboard$/)
   await expect(page.getByRole('navigation').getByText('Ploy Requester')).toBeVisible()
   await page.screenshot({ path: shot('authentication', 'requester-home'), fullPage: true })
 })
@@ -76,7 +77,7 @@ test('E2E-02 an initial password must be changed before using the app', async ({
   await page.getByLabel(/^new password/i).fill(READY_PASSWORD)
   await page.getByLabel(/^confirm new password/i).fill(READY_PASSWORD)
   await page.getByRole('button', { name: /save new password/i }).click()
-  await expect(page).toHaveURL(/\/my-tickets$/)
+  await expect(page).toHaveURL(/\/dashboard$/)
   await expect(page.getByText('Password updated')).toBeVisible()
   await page.screenshot({ path: shot('authentication', 'change-password-success'), fullPage: true })
 })
@@ -104,7 +105,7 @@ test('E2E-04 each role sees its own menu; other pages are Forbidden', async ({ p
   await signOut(page)
 
   await signIn(page, staff)
-  await expect(page).toHaveURL(/\/staff\/queue$/)
+  await expect(page).toHaveURL(/\/dashboard$/)
   await expect(page.getByRole('navigation').getByRole('link', { name: 'Ticket Queue' })).toBeVisible()
   await expect(menu().filter({ hasText: /My Tickets|Create Ticket|User Management/ })).toHaveCount(0)
   await page.goto('/admin/users')

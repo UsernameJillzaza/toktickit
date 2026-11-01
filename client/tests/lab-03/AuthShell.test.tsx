@@ -59,16 +59,17 @@ describe('UI-10 role navigation', () => {
     expect(within(nav).queryByRole('button', { name: /change requester/i })).not.toBeInTheDocument()
   })
 
-  it('IT Staff sees Ticket Queue and lands on it, without Requester destinations', async () => {
+  it('IT Staff sees Ticket Queue and lands on the Dashboard (Lab 4), without Requester destinations', async () => {
     stubApi(userOf('IT_STAFF'))
     renderAt('/')
 
     const nav = await screen.findByRole('navigation')
     await within(nav).findByText('IT Staff')
-    // '/' redirects to the queue in an effect, so wait for the active state.
+    // '/' redirects to the Dashboard in an effect, so wait for the active state.
     await waitFor(() =>
-      expect(within(nav).getByRole('link', { name: 'Ticket Queue' })).toHaveAttribute('aria-current', 'page'),
+      expect(within(nav).getByRole('link', { name: 'Dashboard' })).toHaveAttribute('aria-current', 'page'),
     )
+    expect(within(nav).getByRole('link', { name: 'Ticket Queue' })).toBeInTheDocument()
     expect(within(nav).queryByRole('link', { name: 'My Tickets' })).not.toBeInTheDocument()
     expect(within(nav).queryByRole('link', { name: 'Create Ticket' })).not.toBeInTheDocument()
   })

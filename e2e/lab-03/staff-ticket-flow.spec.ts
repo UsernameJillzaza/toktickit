@@ -57,6 +57,7 @@ test('E2E-05 requester ↔ IT Staff: claim, prioritise, talk, resolve, close', a
 
   // 2. IT Staff finds it in the queue (unassigned).
   await signIn(staffPage, staff)
+  await staffPage.goto('/staff/queue') // sign-in now lands on the Dashboard (Lab 4)
   await staffPage.getByRole('button', { name: 'Unassigned' }).click()
   await staffPage.getByRole('searchbox', { name: /search tickets/i }).fill(ticketNumber)
   await staffPage.getByRole('button', { name: /^search$/i }).click()
@@ -149,6 +150,7 @@ test('E2E-05 requester ↔ IT Staff: claim, prioritise, talk, resolve, close', a
 
 test('queue states and default view (screenshots)', async ({ page }) => {
   await signIn(page, staff)
+  await page.goto('/staff/queue') // sign-in now lands on the Dashboard (Lab 4)
   await expect(page.getByRole('table')).toBeVisible()
   await page.screenshot({ path: shot('staff-queue', 'queue-default'), fullPage: true })
 
