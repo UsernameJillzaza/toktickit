@@ -104,6 +104,22 @@ test('E2E-05 requester ↔ IT Staff: claim, prioritise, talk, resolve, close', a
   await staffPage.reload()
   await expect(staffPage.getByText(/the requester reported this problem as resolved/i)).toBeVisible()
 
+  // Lab 4 BR-19: Resolved needs a completed Action. The Actions screen arrives
+  // in L4-4, so this Lab 3 flow records the finished work through the API (the
+  // page shares the signed-in staff session), then reloads to see the ticket's
+  // new Last Updated before changing the status (BR-23).
+  const ticketId = new URL(staffPage.url()).pathname.split('/').pop()
+  const made = await staffPage.request.post(`/api/staff/tickets/${ticketId}/actions`, {
+    data: { requestKey: `e2e-05-${ticketId}`, description: 'Re-seated the HDMI cable and tested the projector' },
+  })
+  expect(made.ok()).toBeTruthy()
+  const action = await made.json()
+  const finished = await staffPage.request.post(`/api/staff/tickets/${ticketId}/actions/${action.id}/complete`, {
+    data: { version: action.version, result: 'The picture is back on every laptop' },
+  })
+  expect(finished.ok()).toBeTruthy()
+  await staffPage.reload()
+
   await chooseStatus(staffPage, 'Resolved')
   const dialog = staffPage.getByRole('alertdialog', { name: 'Change status to Resolved?' })
   await expect(dialog).toBeVisible()

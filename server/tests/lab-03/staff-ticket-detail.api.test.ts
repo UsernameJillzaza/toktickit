@@ -29,8 +29,13 @@ function ticketFor(options: Omit<Parameters<typeof insertTicket>[0], 'requesterI
 
 const setOwner = (agent: TestAgent, id: number, ownerId: unknown) =>
   agent.put(`/api/staff/tickets/${id}/owner`).send({ ownerId })
-const setStatus = (agent: TestAgent, id: number, status: unknown) =>
-  agent.put(`/api/staff/tickets/${id}/status`).send({ status })
+// Lab 4 BR-23: a status change carries the updatedAt the caller last saw. These
+// Lab 3 tests are about the matrix and the owner rule, so each call sends the
+// current value; staleness itself is tested in lab-04/ticket-workflow.api.test.ts.
+const setStatus = async (agent: TestAgent, id: number, status: unknown) => {
+  const row = await prisma.ticket.findUnique({ where: { id }, select: { updatedAt: true } })
+  return agent.put(`/api/staff/tickets/${id}/status`).send({ status, expectedUpdatedAt: row?.updatedAt.toISOString() })
+}
 const setPriority = (agent: TestAgent, id: number, itPriority: unknown) =>
   agent.put(`/api/staff/tickets/${id}/it-priority`).send({ itPriority })
 
