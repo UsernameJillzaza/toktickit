@@ -6,6 +6,7 @@ import { PriorityBadge, RoleBadge, StatusBadge } from '../components/Badges'
 import { PRIORITY_LABELS, STATUS_LABELS } from '../components/labels'
 import { Forbidden, NotFound } from '../components/StatusPages'
 import Conversation from '../components/Conversation'
+import { StaffActions } from '../actions/ActionsTaken'
 import type { Role } from '../auth/AuthContext'
 
 type Owner = { id: number; name: string; role: Role; isActive: boolean }
@@ -28,6 +29,9 @@ export type StaffTicket = {
   owner: Owner | null
   attachments: Attachment[]
   allowedTransitions: string[]
+  // Lab 4: what the resolution gate will say, so the screen can explain it first.
+  actionCounts?: { open: number; completed: number; cancelled: number }
+  resolution?: { canResolve: boolean; canCancel: boolean; reasons: string[] }
 }
 
 type Assignee = { id: number; name: string; role: Role }
@@ -39,6 +43,21 @@ const CONFIRM: Record<string, string> = {
   RESOLVED: 'The requester will see the ticket as resolved. It can still be reopened or closed afterwards.',
   CLOSED: 'Closing is final: owner, IT priority and status can no longer change, and no new public comments can be added.',
   CANCELLED: 'Cancelling is final: owner, IT priority and status can no longer change, and no new public comments can be added.',
+}
+
+const STALE_TEXT = 'This ticket changed. Reload to continue.'
+
+// ui-spec §7: the gate's reasons in plain words, from the counts the API returned.
+function resolutionHint(ticket: StaffTicket): string[] | null {
+  const { resolution, actionCounts } = ticket
+  if (!resolution || resolution.canResolve || !ticket.allowedTransitions.includes('RESOLVED')) return null
+  const lines = ['Resolved needs at least one completed action and no open actions.']
+  if (resolution.reasons.includes('NO_COMPLETED_ACTION')) lines.push('No action has been completed yet.')
+  if (resolution.reasons.includes('OPEN_ACTIONS')) {
+    const n = actionCounts?.open ?? 0
+    lines.push(n === 1 ? '1 action is still open.' : `${n || 'Some'} actions are still open.`)
+  }
+  return lines
 }
 
 const formatDate = (iso: string) => new Date(iso).toLocaleString()
@@ -170,6 +189,7 @@ export default function StaffTicketDetail() {
         </div>
         <div className="col-lg-8 order-4 order-lg-3">
           <AttachmentsCard attachments={ticket.attachments} />
+          <StaffActions ticketId={ticket.id} meId={user!.id} assignees={assignees} onChanged={load} />
           <div className="mt-3">
             <Conversation
               onPosted={load}
@@ -286,6 +306,12 @@ function OperationsCard({ ticket, meId, assignees, onSaved, reload, saved, error
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
+        // The ticket moved on under this screen: say so, keep the choice, and
+        // let the user reload when ready (ui-spec §7).
+        if (data.code === 'STALE_UPDATE') {
+          setErrors({ [control]: STALE_TEXT })
+          return
+        }
         setErrors({ [control]: data.error ?? 'Could not save this change.' })
         // Someone else may have changed the ticket — show the latest state.
         if (res.status === 409) await reload()
@@ -304,6 +330,8 @@ function OperationsCard({ ticket, meId, assignees, onSaved, reload, saved, error
     if (CONFIRM[statusChoice]) setConfirming(statusChoice)
     else save('status', 'status', { status: statusChoice, expectedUpdatedAt: ticket.updatedAt })
   }
+
+  const hint = resolutionHint(ticket)
 
   const ownerLine = ticket.owner ? (
     <span className="d-inline-flex flex-wrap align-items-center gap-1">
@@ -418,7 +446,7 @@ function OperationsCard({ ticket, meId, assignees, onSaved, reload, saved, error
                 Change status
               </label>
               <div className="d-flex gap-2">
-                <select id="ops-status" className="form-select form-select-sm" value={statusChoice} onChange={(e) => setStatusChoice(e.target.value)}>
+                <select id="ops-status" className="form-select form-select-sm" value={statusChoice} aria-describedby={hint ? 'ops-status-hint' : undefined} onChange={(e) => setStatusChoice(e.target.value)}>
                   <option value="">Choose…</option>
                   {ticket.allowedTransitions.map((s) => (
                     <option key={s} value={s}>
@@ -436,7 +464,30 @@ function OperationsCard({ ticket, meId, assignees, onSaved, reload, saved, error
                   Save
                 </button>
               </div>
-              {errors.status && <div className="text-danger small mt-1">{errors.status}</div>}
+              {hint && (
+                <div className="small text-secondary mt-1" id="ops-status-hint">
+                  {hint.map((line) => (
+                    <div key={line}>{line}</div>
+                  ))}
+                </div>
+              )}
+              {errors.status && (
+                <div className="text-danger small mt-1" role="alert">
+                  {errors.status}
+                  {errors.status === STALE_TEXT && (
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline-danger ms-2"
+                      onClick={() => {
+                        setErrors({})
+                        reload()
+                      }}
+                    >
+                      Reload
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </fieldset>
         )}
