@@ -400,3 +400,31 @@ describe('UI-08 the Requester view', () => {
     expect(await screen.findByRole('button', { name: 'Retry' })).toBeInTheDocument()
   })
 })
+
+// Found by E2E-02: resolving the Ticket from the Operations card left "New action" enabled.
+describe('UI-07 the panel follows the Ticket when it changes elsewhere on the screen', () => {
+  it('fetches the list again when the refresh token changes, and disables New action once the Ticket is not workable', async () => {
+    let workable = true
+    const calls: string[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        calls.push(url)
+        return { ok: true, status: 200, json: async () => ({ ticketStatus: 'IN_PROGRESS', workable, actions: [] }) }
+      }),
+    )
+    const view = render(<StaffActions ticketId={12} meId={8} assignees={STAFF} onChanged={vi.fn()} refreshToken="a" />)
+    const button = await screen.findByRole('button', { name: 'New action' })
+    await waitFor(() => expect(button).toBeEnabled())
+    expect(calls).toHaveLength(1)
+
+    workable = false // the Ticket was resolved with the status control
+    view.rerender(<StaffActions ticketId={12} meId={8} assignees={STAFF} onChanged={vi.fn()} refreshToken="b" />)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'New action' })).toBeDisabled())
+    expect(calls).toHaveLength(2)
+    expect(screen.getByText('Reopen the ticket to add actions.')).toBeInTheDocument()
+
+    view.rerender(<StaffActions ticketId={12} meId={8} assignees={STAFF} onChanged={vi.fn()} refreshToken="b" />)
+    expect(calls).toHaveLength(2) // the same token does not refetch
+  })
+})

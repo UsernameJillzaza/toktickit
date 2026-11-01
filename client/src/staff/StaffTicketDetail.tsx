@@ -72,6 +72,10 @@ export default function StaffTicketDetail() {
   const [assignees, setAssignees] = useState<Assignee[]>([])
   const [saved, setSaved] = useState(false)
   const [opsErrors, setOpsErrors] = useState<ControlErrors>({})
+  // Bumped by an explicit reload (after a stale or conflicting change) so the
+  // notes and comments are fetched again too, without remounting them and
+  // losing a draft the user is typing.
+  const [reloads, setReloads] = useState(0)
 
   useEffect(() => {
     if (!saved) return
@@ -170,7 +174,10 @@ export default function StaffTicketDetail() {
               setTicket(next)
               setSaved(true)
             }}
-            reload={load}
+            reload={async () => {
+              setReloads((n) => n + 1)
+              await load()
+            }}
             saved={saved}
             errors={opsErrors}
             setErrors={setOpsErrors}
@@ -179,6 +186,7 @@ export default function StaffTicketDetail() {
         <div className="col-lg-4 order-3 order-lg-4">
           <Conversation
             onPosted={load}
+            refreshKey={reloads}
             endpoint={`/api/staff/tickets/${ticket.id}/notes`}
             heading="Internal notes — IT Staff and Administrators only"
             inputLabel="New internal note"
@@ -189,10 +197,11 @@ export default function StaffTicketDetail() {
         </div>
         <div className="col-lg-8 order-4 order-lg-3">
           <AttachmentsCard attachments={ticket.attachments} />
-          <StaffActions ticketId={ticket.id} meId={user!.id} assignees={assignees} onChanged={load} />
+          <StaffActions ticketId={ticket.id} meId={user!.id} assignees={assignees} onChanged={load} refreshToken={`${ticket.updatedAt}|${ticket.currentStatus}`} />
           <div className="mt-3">
             <Conversation
               onPosted={load}
+              refreshKey={reloads}
               endpoint={`/api/tickets/${ticket.id}/comments`}
               heading="Public comments — visible to the requester"
               inputLabel="New public comment"
