@@ -162,6 +162,9 @@ async function main() {
   // Lab 4: sample Actions Taken (zero, one and several per ticket).
   const actions = await seedActions(prisma)
   console.log(`Seeded ${actions.total} actions taken (${actions.created} new)`)
+  for (const summary of actions.skipped) {
+    console.warn(`WARNING: no ticket with the summary "${summary}" — its sample actions were NOT seeded. Was it renamed in seed-tickets.ts?`)
+  }
 }
 
 main()

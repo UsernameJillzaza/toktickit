@@ -74,7 +74,7 @@ Required: `requestKey` (1–64 chars), `description`. Optional: `actionAt` (defa
 | Status | Body | When |
 | --- | --- | --- |
 | 201 | Action | created (Ticket's Last Updated moves, BR-17) |
-| 200 | Action | the same `requestKey` was already used on this Ticket: the existing Action is returned, nothing is created and the body is otherwise ignored (BR-16) |
+| 200 | Action | the same `requestKey` was already used on this Ticket: the existing Action is returned and nothing is created; the field *values* of the repeat are ignored, but its shape is still checked, so an unknown field is a `400` (BR-16) |
 | 400 | `VALIDATION_ERROR` + `field` | missing/invalid fields; `description` empty or over 2000; `followUpRequired` true without `followUpNote`, or a note while false; note over 1000; `attachmentNotes` over 500; `actionAt` more than 5 minutes in the future or not a date; any field not listed above (`status`, `version` and `id` included) |
 | 400 | `PERFORMER_INVALID` | `performedById` is not an active IT Staff member or Administrator |
 | 401 / 403 | — | signed out / Requester |

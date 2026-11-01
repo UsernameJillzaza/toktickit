@@ -128,6 +128,7 @@ describe('MIG-03 the seed covers every case and can be run again', () => {
     const afterFirst = await prisma.actionTaken.count()
     const again = await seedActions(prisma)
     expect(again.created).toBe(0)
+    expect(again.skipped).toEqual([]) // a missing Ticket is reported, never silent
     expect(await prisma.actionTaken.count()).toBe(afterFirst)
   })
 
@@ -188,6 +189,15 @@ describe('MIG-04 Tickets that existed before the migration', () => {
     expect(list.status).toBe(200)
     expect(list.body.actions).toEqual([])
     expect((await staff.agent.get(`/api/staff/tickets/${legacy.id}`)).status).toBe(200)
+  })
+
+  it('both finished Tickets without Actions are on purpose: one Resolved, one Closed', async () => {
+    for (const [summary, status] of [['VPN certificate warning on new laptop', 'RESOLVED'], ['Laptop battery swells and lifts the keyboard', 'CLOSED']] as const) {
+      const t = await prisma.ticket.findFirstOrThrow({ where: { summary } })
+      expect(t.currentStatus).toBe(status)
+      expect(await prisma.actionTaken.count({ where: { ticketId: t.id } })).toBe(0)
+      expect(SEED_ACTIONS.some((a) => a.ticket === summary)).toBe(false)
+    }
   })
 
   it('a Resolved Ticket that has no Actions at all is still readable and workable only after reopening', async () => {
