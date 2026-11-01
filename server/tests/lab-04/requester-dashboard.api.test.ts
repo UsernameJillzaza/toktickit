@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
 import { prisma } from '../../src/db'
 import { cleanupTestUsers, createLoggedInUser } from '../helpers/auth'
 import type { TestAgent, TestUser } from '../helpers/auth'
@@ -172,6 +172,8 @@ describe('API-36 My Tickets status and updatedWithinDays', () => {
     ['updatedWithinDays=1.5', 'updatedWithinDays'],
     ['updatedWithinDays=abc', 'updatedWithinDays'],
     ['updatedWithinDays=007', 'updatedWithinDays'],
+    ['status=', 'status'],
+    ['updatedWithinDays=', 'updatedWithinDays'],
   ])('%s is a 400 on that field', async (query, field) => {
     const res = await list(query)
     expect(res.status).toBe(400)
@@ -202,4 +204,31 @@ describe('API-38 each Requester card equals its drill-down list', () => {
     expect((await empty.agent.get('/api/tickets?status=open')).body.total).toBe(card.open)
     expect((await empty.agent.get('/api/tickets?status=resolved&updatedWithinDays=30')).body.total).toBe(card.resolvedLast30Days)
   })
+})
+
+// Review of #75: a failing dashboard query is a safe 500, never the error text.
+describe('a dashboard whose query fails answers a safe 500', () => {
+  it.each([
+    ['/api/dashboard/requester', () => requester.agent],
+    ['/api/dashboard/staff', () => staffAgentForErrorTest()],
+  ] as const)('%s', async (url, agent) => {
+    const secret = `SELECT secret FROM hidden_${Date.now()}`
+    const spy = vi.spyOn(prisma.ticket, 'count').mockRejectedValueOnce(new Error(secret))
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const res = await agent().get(url)
+    spy.mockRestore()
+    quiet.mockRestore()
+    expect(res.status).toBe(500)
+    expect(res.body.code).toBe('SERVER_ERROR')
+    expect(JSON.stringify(res.body)).not.toContain(secret)
+    expect(JSON.stringify(res.body)).not.toMatch(/select|prisma|stack/i)
+  })
+})
+
+let staffForErrors: { user: TestUser; agent: TestAgent } | null = null
+function staffAgentForErrorTest() {
+  return staffForErrors!.agent
+}
+beforeAll(async () => {
+  staffForErrors = await createLoggedInUser({ role: 'IT_STAFF' })
 })

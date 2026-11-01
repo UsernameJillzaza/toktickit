@@ -256,7 +256,7 @@ describe('API-37 the queue filter requesterResolved', () => {
     expect(res.body.items.map((t: { summary: string }) => t.summary).sort()).toEqual(['Dash reported active', 'Dash reported closed'])
   })
 
-  it.each(['false', '1', 'TRUE', 'yes', 'true,false'])('requesterResolved=%s is a 400 on that field', async (value) => {
+  it.each(['false', '1', 'TRUE', 'yes', 'true,false', ''])('requesterResolved=%s is a 400 on that field', async (value) => {
     const res = await queue(`requesterResolved=${value}`)
     expect(res.status).toBe(400)
     expect(res.body).toMatchObject({ code: 'VALIDATION_ERROR', field: 'requesterResolved' })

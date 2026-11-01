@@ -225,14 +225,14 @@ app.post('/api/tickets', requesterOnly, async (req, res) => {
 
 /** `open` and `resolved` are groups; anything else must be a status name. `undefined` = no filter. */
 function parseStatusFilter(raw: unknown): { notIn: TicketStatus[] } | { in: TicketStatus[] } | TicketStatus | undefined | 'invalid' {
-  if (raw === undefined || raw === '') return undefined
+  if (raw === undefined) return undefined
   if (raw === 'open') return { notIn: ['RESOLVED', 'CLOSED', 'CANCELLED'] }
   if (raw === 'resolved') return { in: ['RESOLVED', 'CLOSED'] }
   return isTicketStatus(raw) ? raw : 'invalid'
 }
 
 function parseWithinDays(raw: unknown): number | undefined | 'invalid' {
-  if (raw === undefined || raw === '') return undefined
+  if (raw === undefined) return undefined
   if (typeof raw !== 'string' || !/^[1-9]\d{0,2}$/.test(raw)) return 'invalid'
   const n = Number(raw)
   return n <= 365 ? n : 'invalid'

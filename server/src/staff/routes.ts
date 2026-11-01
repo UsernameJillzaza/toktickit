@@ -82,7 +82,7 @@ function parseQueueQuery(req: Request): QueueQuery {
   if (categoryId) and.push({ categoryId })
 
   // Lab 4 (D-12): the selection behind the dashboard's "Requester reports resolved" card.
-  if (q.requesterResolved !== undefined && q.requesterResolved !== '') {
+  if (q.requesterResolved !== undefined) {
     if (q.requesterResolved !== 'true') throw new QueryError('requesterResolved', 'requesterResolved must be true.')
     and.push({ requesterResolvedAt: { not: null } })
   }
