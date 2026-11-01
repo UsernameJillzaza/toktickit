@@ -76,7 +76,7 @@ IDs restart at BR-01 for Lab 4 as the handout asks. "Lab 3 BR-nn" means a rule f
 - **BR-21** Because of BR-11, BR-19 and BR-20, a `RESOLVED` Ticket created under Lab 4 rules never has an Open Action. Tickets that became `RESOLVED` under Lab 3 may have no Actions at all; the gate applies only to new transitions, so they can still be Closed or Reopened.
 - **BR-22** The Requester's "Problem Appears Resolved" indication stays advisory (Lab 3 BR-25): it never changes status and never bypasses BR-19.
 - **BR-23** Ticket status changes must send `expectedUpdatedAt`, the `updatedAt` the user saw. If the Ticket changed since, the answer is `409 STALE_UPDATE`. Owner and IT Priority changes accept the same field as optional; when sent it must match.
-- **BR-24** The owner rule of Lab 3 BR-23 (Owner required for In Progress, Waiting for Requester, Resolved) still applies; the gate is checked together with it in one locked transaction (Lab 3 D-13 row lock).
+- **BR-24** The owner rule of Lab 3 BR-23 (Owner required for In Progress, Waiting for Requester, Resolved) still applies; the gate is checked together with it in one locked transaction, using the Ticket row lock that Lab 3's `mutateTicket` introduced.
 
 ### 5.3 Dashboards
 
@@ -93,12 +93,12 @@ IDs restart at BR-01 for Lab 4 as the handout asks. "Lab 3 BR-nn" means a rule f
 
 ### 5.4 Final Ticket status-transition matrix
 
-Rows are the current status, columns the new status. A cell with a note is allowed only under that condition. Owner = BR-24, which applies to every move into `IN_PROGRESS`, `WAITING_FOR_REQUESTER` or `RESOLVED` when the Ticket has no owner (it is written only where the source status can be unowned); Gate = BR-19/20.
+Rows are the current status, columns the new status. A cell marked Gate is allowed only if the gate of BR-19/20 passes. **Owner rule (BR-24), true for every cell that moves into `IN_PROGRESS`, `WAITING_FOR_REQUESTER` or `RESOLVED`:** the Ticket must have an owner, otherwise `409 OWNER_REQUIRED`; it is not repeated in the cells.
 
 | From \ To | NEW | OPEN | IN_PROGRESS | WAITING_FOR_REQUESTER | RESOLVED | CLOSED | REOPENED | CANCELLED |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| NEW | — | ✅ | ✅ Owner | — | — | — | — | ✅ Gate |
-| OPEN | — | — | ✅ Owner | ✅ Owner | ✅ Owner + Gate | — | — | ✅ Gate |
+| NEW | — | ✅ | ✅ | — | — | — | — | ✅ Gate |
+| OPEN | — | — | ✅ | ✅ | ✅ Gate | — | — | ✅ Gate |
 | IN_PROGRESS | — | — | — | ✅ | ✅ Gate | — | — | ✅ Gate |
 | WAITING_FOR_REQUESTER | — | — | ✅ | — | ✅ Gate | — | — | ✅ Gate |
 | RESOLVED | — | — | — | — | — | ✅ | ✅ | — |
@@ -277,7 +277,7 @@ The handout leaves several things open or contradicts itself. These are my decis
 | D-11 | "Urgent" means Active Tickets with IT Priority `CRITICAL`; HIGH is visible through the priority counts. | Keeps the list short and the drill-down a single existing query parameter. |
 | D-12 | Three small filter additions (My Tickets `status` and `updatedWithinDays`, queue `requesterResolved`) are part of this sprint so every card has a working drill-down. | Handout §4.6 asks for a drill-down where practical; the existing endpoints cannot express these selections. |
 | D-13 | `/dashboard` is one route and the content follows the role; every role lands there. | One route keeps navigation and the "Dashboard" active state simple. |
-| D-14 | Performance-smoke: the dashboard endpoints and the Actions list must answer within 1500 ms on the seeded data in the test run. | A smoke guard against accidental N+1 queries, not a benchmark. |
+| D-14 | Performance-smoke: the **median of five calls** to each dashboard endpoint and to the Actions list must be under 1500 ms on the seeded data. | A smoke guard against an accidental N+1 query, not a benchmark; the median keeps one slow call on a busy machine from failing the run. |
 | D-15 | Where this document is silent, the Lab 2/3 decisions (D-nn) stay in force. | Preserves earlier increments (BR-37). |
 
 ## 12. Issue Decomposition

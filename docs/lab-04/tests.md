@@ -70,7 +70,7 @@ Principles carried from Lab 3: each test creates and removes its own data (run-t
 | API-36 | API | AC-32 | My Tickets `status` (open, resolved, each status) and `updatedWithinDays`; unknown values; combined with search and category | correct subsets; `400` on bad values | `server/tests/lab-04/requester-dashboard.api.test.ts` | Pending |
 | API-37 | API | AC-32 | queue `requesterResolved=true`; other values | correct subset (default `active` still applies); `400` on other values | `server/tests/lab-04/staff-dashboard.api.test.ts` | Pending |
 | API-38 | API (dashboard) | BR-30 / AC-31 | for every card, the count equals `total` of the drill-down list request | equal for all cards | `server/tests/lab-04/staff-dashboard.api.test.ts` and `requester-dashboard.api.test.ts` | Pending |
-| PERF-01 | Performance-smoke | D-14 / AC-27, AC-25 | both dashboards and the Actions list on the seeded data | each answers in under 1500 ms | `server/tests/lab-04/performance-smoke.api.test.ts` | Pending |
+| PERF-01 | Performance-smoke | D-14 / AC-27, AC-25 | both dashboards and the Actions list on the seeded data, five calls each | the median of each is under 1500 ms | `server/tests/lab-04/performance-smoke.api.test.ts` | Pending |
 
 ### 2.3 Migration and seed
 
@@ -172,5 +172,6 @@ Pending: filled from real runs on `main` after the last merge (counts, commit ha
 
 - **Dashboard "resolved" time:** there is no resolved-at column, so `resolvedLast30Days` uses `updatedAt` (D-10). A later comment on a resolved Ticket keeps it in the window a little longer.
 - **No file upload on an Action:** only free-text Attachment Notes (scope).
-- **Performance-smoke is a guard, not a benchmark:** a single 1500 ms threshold on seeded data (D-14).
+- **Performance-smoke is a guard, not a benchmark:** the median of five calls under 1500 ms on seeded data (D-14); it can still fail on a machine that is badly overloaded.
+- **Card and list are evaluated at different moments:** the rolling 30-day window of "Resolved (last 30 days)" is computed once for the card and again when its drill-down list is requested, so a Ticket crossing the boundary in between can make them differ by one (AC-31 is tested with data well away from the boundary).
 - Lab 3's recorded limitations (for example the Requester-visible `updatedAt` and the unprotected `lab3-staging`) still stand unless listed as fixed here later.
