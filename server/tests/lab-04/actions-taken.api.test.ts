@@ -277,6 +277,41 @@ describe('API-06 stale versions', () => {
   })
 })
 
+// API-06 (BR-15), the claim that matters: two people editing at the same moment
+// must not overwrite each other. The overlap is forced as in API-13.
+describe('API-06 two edits with the same version at the same moment', () => {
+  it('exactly one wins; the other gets STALE_UPDATE and its text is not saved', async () => {
+    const ticketId = await newTicket()
+    const a = (await create(staff.agent, ticketId)).body
+    let pending!: Promise<Array<{ status: number; body: { code?: string } }>>
+    await prisma.$transaction(
+      async (tx) => {
+        await tx.$queryRaw`SELECT id FROM "Ticket" WHERE id = ${ticketId} FOR UPDATE`
+        pending = Promise.all([
+          edit(staff.agent, ticketId, a.id, { version: 1, description: 'Edit from the first person' }),
+          edit(otherStaff.agent, ticketId, a.id, { version: 1, description: 'Edit from the second person' }),
+        ])
+        const deadline = Date.now() + 8000
+        for (;;) {
+          const [{ n }] = await prisma.$queryRaw<{ n: number }[]>`
+            SELECT count(*)::int AS n FROM pg_stat_activity
+            WHERE wait_event_type = 'Lock' AND query LIKE '%"Ticket"%FOR UPDATE%'`
+          if (n >= 2) break
+          if (Date.now() > deadline) throw new Error('the two edits never queued on the Ticket lock')
+          await new Promise((r) => setTimeout(r, 20))
+        }
+      },
+      { timeout: 15000 },
+    )
+    const results = await pending
+    expect(results.map((r) => r.status).sort()).toEqual([200, 409])
+    expect(results.find((r) => r.status === 409)!.body.code).toBe('STALE_UPDATE')
+    const row = await prisma.actionTaken.findUniqueOrThrow({ where: { id: a.id } })
+    expect(row.version).toBe(2) // one change, not two
+    expect(['Edit from the first person', 'Edit from the second person']).toContain(row.description)
+  })
+})
+
 // API-07 (FR-04, AC-07)
 describe('API-07 complete', () => {
   it('needs a result; with one the Action is Completed and version rises', async () => {
