@@ -190,7 +190,7 @@ test('E2E-03 the IT Staff dashboard: cards equal the lists they open and the dat
 
   // Evidence that the numbers come from the database: both sides on one page.
   await page.goto('/dashboard')
-  const evidence = await (await page.context().newPage())
+  const evidence = await page.context().newPage()
   await evidence.setContent(`<html><body style="font:16px/1.5 system-ui;padding:24px">
     <h1 style="font-size:20px">Metric vs database (IT Staff dashboard, ${new Date().toISOString()})</h1>
     <table border="1" cellpadding="8" style="border-collapse:collapse">
