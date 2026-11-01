@@ -66,6 +66,8 @@ model User {
   sessions           Session[]
   publicComments     PublicComment[] @relation("CommentAuthor")
   internalNotes      InternalNote[]  @relation("NoteAuthor")
+  performedActions   ActionTaken[]   @relation("ActionPerformer")
+  createdActions     ActionTaken[]   @relation("ActionCreator")
 
   @@index([role])
 }
@@ -115,6 +117,7 @@ model Ticket {
   attachments         Attachment[]
   publicComments      PublicComment[]
   internalNotes       InternalNote[]
+  actions             ActionTaken[]
 
   @@index([requesterId])
   @@index([ownerId])
@@ -166,4 +169,38 @@ model InternalNote {
   createdAt DateTime @default(now())
 
   @@index([ticketId, createdAt])
+}
+
+// Lab 4 §7, D-01 … D-05: the work IT Staff actually do on a Ticket. Created by
+// the create-only migration add_actions_taken (nothing existing is altered).
+enum ActionStatus {
+  OPEN
+  COMPLETED
+  CANCELLED
+}
+
+model ActionTaken {
+  id               Int          @id @default(autoincrement())
+  ticketId         Int
+  ticket           Ticket       @relation(fields: [ticketId], references: [id])
+  actionAt         DateTime // when the action happened; user-set, default now (BR-05)
+  description      String // 1–2000, plain text (BR-04, BR-13)
+  result           String? // required to complete; the reason when cancelled (BR-09)
+  status           ActionStatus @default(OPEN)
+  performedById    Int
+  performedBy      User         @relation("ActionPerformer", fields: [performedById], references: [id])
+  createdById      Int
+  createdBy        User         @relation("ActionCreator", fields: [createdById], references: [id])
+  followUpRequired Boolean      @default(false)
+  followUpNote     String? // required iff followUpRequired — also a CHECK constraint (BR-06, D-05)
+  attachmentNotes  String? // text only, ≤ 500; no file is uploaded (BR-07)
+  requestKey       String? // client-generated, unique per Ticket: retry safety (BR-16, D-04)
+  version          Int          @default(1) // optimistic check on edit/complete/cancel (BR-15)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@unique([ticketId, requestKey])
+  @@index([ticketId, actionAt, id])
+  @@index([performedById, actionAt])
+  @@index([status])
 }

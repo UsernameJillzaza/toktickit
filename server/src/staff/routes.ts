@@ -3,6 +3,9 @@ import type { Request, Response } from 'express'
 import { prisma } from '../db'
 import { parseId, sendError } from '../http'
 import { notesRouter } from '../tickets/conversation'
+import { actionsRouter } from '../actions/routes'
+import { gateMessage, gateReasons, resolutionHint } from '../tickets/resolution'
+import type { ActionCounts } from '../tickets/resolution'
 import { ALL_STATUSES, allowedTransitions, canTransition, isTerminal, isTicketStatus, OWNER_REQUIRED_STATUSES } from '../tickets/workflow'
 import { requireRole } from '../auth/middleware'
 import type { Prisma, Priority, TicketStatus } from '../generated/prisma/client'
@@ -13,6 +16,7 @@ import type { Prisma, Priority, TicketStatus } from '../generated/prisma/client'
 export const staffRouter = Router()
 staffRouter.use(requireRole('IT_STAFF', 'ADMIN'))
 staffRouter.use('/tickets/:id/notes', notesRouter)
+staffRouter.use('/tickets/:id/actions', actionsRouter)
 
 const STATUSES = ALL_STATUSES
 const TERMINAL: TicketStatus[] = ALL_STATUSES.filter(isTerminal)
@@ -76,6 +80,12 @@ function parseQueueQuery(req: Request): QueueQuery {
 
   const categoryId = positiveInt(q.categoryId, 'categoryId')
   if (categoryId) and.push({ categoryId })
+
+  // Lab 4 (D-12): the selection behind the dashboard's "Requester reports resolved" card.
+  if (q.requesterResolved !== undefined) {
+    if (q.requesterResolved !== 'true') throw new QueryError('requesterResolved', 'requesterResolved must be true.')
+    and.push({ requesterResolvedAt: { not: null } })
+  }
 
   const search = typeof q.search === 'string' ? q.search.trim() : ''
   if (search) {
@@ -179,10 +189,24 @@ const STAFF_DETAIL_SELECT = {
 type Db = Prisma.TransactionClient | typeof prisma
 
 /** The Staff Ticket Detail shape — also the response of every mutation (api-spec). */
+/** How many Actions the Ticket has in each state — what the gate and the screen's hint look at. */
+async function actionCounts(db: Db, ticketId: number): Promise<ActionCounts> {
+  const rows = await db.actionTaken.groupBy({ by: ['status'], where: { ticketId }, _count: { _all: true } })
+  const n = (s: 'OPEN' | 'COMPLETED' | 'CANCELLED') => rows.find((r) => r.status === s)?._count._all ?? 0
+  return { open: n('OPEN'), completed: n('COMPLETED'), cancelled: n('CANCELLED') }
+}
+
 async function loadStaffDetail(db: Db, id: number) {
   const ticket = await db.ticket.findUnique({ where: { id }, select: STAFF_DETAIL_SELECT })
   if (!ticket) return null
-  return { ...ticket, allowedTransitions: allowedTransitions(ticket.currentStatus) }
+  const counts = await actionCounts(db, id)
+  return {
+    ...ticket,
+    allowedTransitions: allowedTransitions(ticket.currentStatus),
+    // Lab 4: a hint for the screen, computed by the same function the status endpoint uses.
+    actionCounts: counts,
+    resolution: resolutionHint(counts),
+  }
 }
 
 /** A rule violation inside a mutation; rolls the transaction back. */
@@ -192,9 +216,25 @@ class TicketRuleError extends Error {
     readonly code: string,
     message: string,
     readonly field?: string,
+    readonly extra?: Record<string, unknown>,
   ) {
     super(message)
   }
+}
+
+const stale = () =>
+  new TicketRuleError(409, 'STALE_UPDATE', 'This ticket was changed by someone else. Reload to see the latest.')
+
+/**
+ * BR-23: the `updatedAt` the user saw. Required for a status change, optional
+ * for owner and IT Priority; when present it must be a real date-time.
+ */
+function parseExpected(raw: unknown, required: boolean): Date | undefined {
+  if (raw === undefined && !required) return undefined
+  if (typeof raw !== 'string' || raw.trim() === '' || Number.isNaN(Date.parse(raw))) {
+    throw new TicketRuleError(400, 'VALIDATION_ERROR', 'expectedUpdatedAt must be the updatedAt you last saw for this ticket, as a date and time.', 'expectedUpdatedAt')
+  }
+  return new Date(raw)
 }
 
 const notFound = () => new TicketRuleError(404, 'NOT_FOUND', 'Ticket not found')
@@ -213,21 +253,25 @@ async function mutateTicket(
   req: Request,
   res: Response,
   change: (tx: Prisma.TransactionClient, ticket: { id: number; currentStatus: TicketStatus; ownerId: number | null }) => Promise<Prisma.TicketUpdateInput>,
+  options: { requireExpected?: boolean } = {},
 ) {
   const id = parseId(req.params.id)
   if (id === null) return sendError(res, 404, 'Ticket not found', 'NOT_FOUND')
   try {
+    const expected = parseExpected(req.body?.expectedUpdatedAt, options.requireExpected === true)
     const detail = await prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM "Ticket" WHERE id = ${id} FOR UPDATE`
-      const ticket = await tx.ticket.findUnique({ where: { id }, select: { id: true, currentStatus: true, ownerId: true } })
+      const ticket = await tx.ticket.findUnique({ where: { id }, select: { id: true, currentStatus: true, ownerId: true, updatedAt: true } })
       if (!ticket) throw notFound()
+      // BR-23: first check of all, so a stale screen never gets a more specific answer.
+      if (expected && ticket.updatedAt.getTime() !== expected.getTime()) throw stale()
       const data = await change(tx, ticket)
       await tx.ticket.update({ where: { id }, data }) // @updatedAt moves Last Updated (BR-26)
       return loadStaffDetail(tx, id)
     })
     res.status(200).json(detail)
   } catch (err) {
-    if (err instanceof TicketRuleError) return sendError(res, err.status, err.message, err.code, err.field)
+    if (err instanceof TicketRuleError) return sendError(res, err.status, err.message, err.code, err.field, err.extra)
     console.error(err)
     sendError(res, 500, 'Unable to update the ticket.', 'SERVER_ERROR')
   }
@@ -300,16 +344,25 @@ staffRouter.put('/tickets/:id/status', (req, res) => {
   if (!isTicketStatus(status)) {
     return sendError(res, 400, `status must be one of: ${ALL_STATUSES.join(', ')}.`, 'VALIDATION_ERROR', 'status')
   }
-  return mutateTicket(req, res, async (_tx, ticket) => {
+  return mutateTicket(req, res, async (tx, ticket) => {
     if (!canTransition(ticket.currentStatus, status)) {
       throw new TicketRuleError(409, 'INVALID_TRANSITION', `Cannot change status from ${ticket.currentStatus} to ${status}.`)
     }
     if (OWNER_REQUIRED_STATUSES.has(status) && ticket.ownerId === null) throw ownerRequired(status)
+    // Lab 4 BR-19, BR-20: resolving needs finished work, cancelling needs none
+    // still open. Counted inside the locked transaction, so a create or a
+    // complete arriving together cannot slip past it.
+    if (status === 'RESOLVED' || status === 'CANCELLED') {
+      const reasons = gateReasons(status, await actionCounts(tx, ticket.id))
+      if (reasons.length > 0) {
+        throw new TicketRuleError(409, 'RESOLUTION_BLOCKED', gateMessage(status, reasons), undefined, { reasons })
+      }
+    }
     return {
       currentStatus: status,
       // BR-25: reopening means the problem is back, so the requester's
       // "appears resolved" flag no longer applies.
       ...(status === 'REOPENED' ? { requesterResolvedAt: null } : {}),
     }
-  })
+  }, { requireExpected: true })
 })

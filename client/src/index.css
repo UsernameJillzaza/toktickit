@@ -55,6 +55,17 @@ body {
 .tt-badge-status-REOPENED { background-color: #fff; color: #b45309; border-color: #b45309; }
 .tt-badge-status-CANCELLED { background-color: #6b7470; color: #fff; }
 
+.tt-badge-action-OPEN { background-color: #eaf6ef; color: #006b3c; border-color: #006b3c; }
+.tt-badge-action-COMPLETED { background-color: #006b3c; color: #fff; }
+.tt-badge-action-CANCELLED { background-color: #6b7470; color: #fff; }
+.tt-badge-followup-NEEDED { background-color: #fff; color: #b45309; border-color: #b45309; }
+
+/* One Action Taken: white card, left border in the status colour (ui-spec §1). */
+.tt-action-card { border-left: 4px solid #6b7470 !important; }
+.tt-action-card-OPEN { border-left-color: #0b7a46 !important; }
+.tt-action-card-COMPLETED { border-left-color: #006b3c !important; }
+.tt-action-card-CANCELLED { border-left-color: #6b7470 !important; }
+
 .tt-badge-priority-LOW { background-color: #6b7470; color: #fff; }
 .tt-badge-priority-MEDIUM { background-color: #0b7a46; color: #fff; }
 .tt-badge-priority-HIGH { background-color: #b45309; color: #fff; }
@@ -154,4 +165,33 @@ body {
     align-items: center;
     justify-content: center;
   }
+}
+
+/* On a phone the links inside a dashboard card (the "View" link, the status and
+   priority rows, the list rows) are touch targets like the buttons: at least 44px. */
+@media (max-width: 767.98px) {
+  .tt-metric-card a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}
+
+/* Dashboard cards and panels (Lab 4 ui-spec §1). Hover and keyboard focus
+   inside a card get the same primary-green ring. */
+.tt-metric-card {
+  background: #fff;
+  border: 1px solid #dfe5e1;
+  border-radius: 8px;
+  padding: 16px;
+}
+.tt-metric-card:hover,
+.tt-metric-card:focus-within {
+  border-color: #006b3c;
+  box-shadow: 0 0 0 2px rgba(0, 107, 60, 0.15);
+}
+.tt-metric-accent { border-left: 4px solid #b45309; }
+.tt-skeleton {
+  background: linear-gradient(90deg, #eceeed, #f6f7f6, #eceeed);
+  border-color: transparent;
 }

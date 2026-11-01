@@ -6,6 +6,7 @@ import { hashPassword } from '../src/auth/password'
 import { SEED_DEMO_PASSWORD, SEED_INITIAL_PASSWORD } from './seed-credentials'
 import { SEED_COMMENTS, SEED_NOTES, SEED_TICKETS } from './seed-tickets'
 import { generateTicketNumber } from '../src/ticketNumber'
+import { seedActions } from './seed-actions'
 
 // Prisma 7's client generator requires an explicit driver adapter.
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL })
@@ -157,6 +158,13 @@ async function main() {
   const newComments = await seedEntries('comment', SEED_COMMENTS)
   const newNotes = await seedEntries('note', SEED_NOTES)
   console.log(`Seeded ${SEED_COMMENTS.length} comments (${newComments} new) and ${SEED_NOTES.length} internal notes (${newNotes} new)`)
+
+  // Lab 4: sample Actions Taken (zero, one and several per ticket).
+  const actions = await seedActions(prisma)
+  console.log(`Seeded ${actions.total} actions taken (${actions.created} new)`)
+  for (const summary of actions.skipped) {
+    console.warn(`WARNING: no ticket with the summary "${summary}" — its sample actions were NOT seeded. Was it renamed in seed-tickets.ts?`)
+  }
 }
 
 main()

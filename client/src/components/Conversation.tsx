@@ -26,6 +26,8 @@ type ConversationProps = {
   variant?: 'public' | 'internal'
   /** Called after a successful post (e.g. to refresh Last Updated). */
   onPosted?: () => void
+  /** Changing this fetches the list again (e.g. the user pressed Reload on the screen). */
+  refreshKey?: number
 }
 
 // A list of comments or notes plus its own form (ui-spec §7, §9). Public and
@@ -42,6 +44,7 @@ export default function Conversation({
   closedText,
   variant = 'public',
   onPosted,
+  refreshKey,
 }: ConversationProps) {
   const headingId = useId()
   const inputId = useId()
@@ -66,7 +69,7 @@ export default function Conversation({
 
   useEffect(() => {
     load()
-  }, [load])
+  }, [load, refreshKey])
 
   const trimmed = draft.trim()
   const canPost = trimmed.length > 0 && trimmed.length <= MAX && !busy

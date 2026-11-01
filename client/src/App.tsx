@@ -9,6 +9,7 @@ import ChangePassword from './auth/ChangePassword'
 import { RoleBadge } from './components/Badges'
 import { NotFound } from './components/StatusPages'
 import HomePage from './HomePage'
+import Dashboard from './dashboard/Dashboard'
 import CreateTicket from './tickets/CreateTicket'
 import MyTickets from './tickets/MyTickets'
 import RequesterTicketDetail from './tickets/RequesterTicketDetail'
@@ -25,13 +26,18 @@ function navItemsFor(role: Role): NavItem[] {
   switch (role) {
     case 'REQUESTER':
       return [
+        { to: '/dashboard', label: 'Dashboard' },
         { to: '/my-tickets', label: 'My Tickets' },
         { to: '/create-ticket', label: 'Create Ticket' },
       ]
     case 'IT_STAFF':
-      return [{ to: '/staff/queue', label: 'Ticket Queue' }]
+      return [
+        { to: '/dashboard', label: 'Dashboard' },
+        { to: '/staff/queue', label: 'Ticket Queue' },
+      ]
     case 'ADMIN':
       return [
+        { to: '/dashboard', label: 'Dashboard' },
         { to: '/staff/queue', label: 'Ticket Queue' },
         { to: '/admin/users', label: 'User Management' },
       ]
@@ -124,6 +130,14 @@ function AppShell() {
         />
         <Route path="/" element={<RequireAuth><HomeRedirect /></RequireAuth>} />
         <Route
+          path="/dashboard"
+          element={
+            <RequireAuth>
+              <Dashboard />
+            </RequireAuth>
+          }
+        />
+        <Route
           path="/system-status"
           element={
             <RequireAuth>
@@ -185,7 +199,7 @@ function AppShell() {
   )
 }
 
-/** `/` sends each role to its own home page (FR-06). */
+/** `/` sends every role to its Dashboard (FR-14). */
 function HomeRedirect() {
   const { user } = useAuth()
   const location = useLocation()

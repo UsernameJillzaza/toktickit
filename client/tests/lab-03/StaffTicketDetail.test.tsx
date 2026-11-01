@@ -123,9 +123,11 @@ describe('UI-18 claim', () => {
 
     await userEvent.click(within(ops).getByRole('button', { name: 'Claim' }))
 
-    await waitFor(() => expect(within(ops).getByText('Arthit Wongsa', { selector: 'strong' })).toBeInTheDocument())
+    // The owner changed, so the card remounts: look it up again.
+    const after = await screen.findByRole('region', { name: 'Operations' })
+    await waitFor(() => expect(within(after).getByText('Arthit Wongsa', { selector: 'strong' })).toBeInTheDocument())
     expect(putCalls(fetchMock)).toEqual([{ url: '/api/staff/tickets/12/owner', body: { ownerId: 8 } }])
-    expect(within(ops).queryByRole('button', { name: 'Claim' })).not.toBeInTheDocument()
+    expect(within(after).queryByRole('button', { name: 'Claim' })).not.toBeInTheDocument()
     expect(await screen.findByText('Saved')).toBeInTheDocument()
   })
 
@@ -176,7 +178,7 @@ describe('UI-19 confirmation before Resolved / Closed / Cancelled', () => {
 
     await userEvent.click(within(ops).getByRole('button', { name: 'Save status' }))
     await userEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Confirm' }))
-    await waitFor(() => expect(putCalls(fetchMock)).toEqual([{ url: '/api/staff/tickets/12/status', body: { status: 'RESOLVED' } }]))
+    await waitFor(() => expect(putCalls(fetchMock)).toEqual([{ url: '/api/staff/tickets/12/status', body: { status: 'RESOLVED', expectedUpdatedAt: '2026-10-01T03:00:00.000Z' } }]))
   })
 
   it('a non-final status saves without a dialog', async () => {

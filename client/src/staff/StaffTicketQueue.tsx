@@ -40,13 +40,18 @@ const SORTS = [
   { value: 'ticketNumber:asc', label: 'Ticket number' },
 ]
 
-const DEFAULTS = { view: 'all', status: 'active', priority: '', categoryId: '', sort: 'createdAt:desc', search: '' }
+const DEFAULTS = { view: 'all', status: 'active', priority: '', categoryId: '', sort: 'createdAt:desc', search: '', requesterResolved: '' }
 type Filters = typeof DEFAULTS
+
+// Lab 4: the dashboard links use the API's own words, owner=me|unassigned;
+// they map onto the quick filter the screen already has.
+const OWNER_TO_VIEW: Record<string, string> = { me: 'mine', unassigned: 'unassigned' }
 
 function readFilters(params: URLSearchParams): Filters & { page: number } {
   const page = Number(params.get('page'))
   return {
-    view: params.get('view') ?? DEFAULTS.view,
+    view: params.get('view') ?? OWNER_TO_VIEW[params.get('owner') ?? ''] ?? DEFAULTS.view,
+    requesterResolved: params.get('requesterResolved') ?? DEFAULTS.requesterResolved,
     status: params.get('status') ?? DEFAULTS.status,
     priority: params.get('priority') ?? DEFAULTS.priority,
     categoryId: params.get('categoryId') ?? DEFAULTS.categoryId,
@@ -71,6 +76,7 @@ export default function StaffTicketQueue() {
   const [state, setState] = useState<LoadState>('loading')
   const [categories, setCategories] = useState<Category[]>([])
   const [reloadKey, setReloadKey] = useState(0)
+  const [refusal, setRefusal] = useState<string | null>(null)
 
   const query = params.toString()
 
@@ -102,15 +108,23 @@ export default function StaffTicketQueue() {
     if (f.priority) api.set('priority', f.priority)
     if (f.categoryId) api.set('categoryId', f.categoryId)
     if (f.search) api.set('search', f.search)
+    if (f.requesterResolved) api.set('requesterResolved', f.requesterResolved)
 
     setState('loading')
     apiFetch(`/api/staff/tickets?${api.toString()}`)
       .then(async (res) => {
         if (cancelled) return
         if (res.status === 403) return setState('forbidden')
+        if (res.status === 400) {
+          const refused = await res.json().catch(() => ({}))
+          if (cancelled) return
+          setRefusal(typeof refused.error === 'string' ? refused.error : null)
+          return setState('failure')
+        }
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const body = await res.json()
         if (cancelled) return
+        setRefusal(null)
         setItems(body.items)
         setTotal(body.total)
         setState('ready')
@@ -155,6 +169,21 @@ export default function StaffTicketQueue() {
   return (
     <main className="container py-4">
       <h1 className="h3 mb-3">Ticket Queue</h1>
+
+      {filters.requesterResolved && (
+        <p className="mb-2">
+          <span className="badge text-bg-light border d-inline-flex align-items-center gap-2 fs-6 fw-normal">
+            Requester reports resolved
+            <button
+              type="button"
+              className="btn-close"
+              style={{ fontSize: '0.6rem' }}
+              aria-label="Remove filter: Requester reports resolved"
+              onClick={() => update({ requesterResolved: '' })}
+            />
+          </span>
+        </p>
+      )}
 
       <div className="card shadow-sm mb-3">
         <div className="card-body d-flex flex-column flex-lg-row flex-wrap gap-2 align-items-lg-end">
@@ -233,7 +262,7 @@ export default function StaffTicketQueue() {
 
       {state === 'failure' && (
         <div className="alert alert-danger d-flex justify-content-between align-items-center" role="alert">
-          <span>We couldn't load the ticket queue. Check your connection and try again.</span>
+          <span>{refusal ?? "We couldn't load the ticket queue. Check your connection and try again."}</span>
           <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => setReloadKey((k) => k + 1)}>
             Retry
           </button>

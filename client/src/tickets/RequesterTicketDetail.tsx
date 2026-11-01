@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext'
 import { apiFetch } from '../api'
 import { PriorityBadge, StatusBadge } from '../components/Badges'
 import Conversation from '../components/Conversation'
+import { RequesterActions } from '../actions/ActionsTaken'
 
 type Attachment = {
   id: number
@@ -37,8 +38,8 @@ type LoadState = 'loading' | 'ready' | 'not-found' | 'failure'
 
 // Lab 2 §8.5, Issue #18: Requester Ticket Detail — read-only Ticket fields
 // plus the Attachment lifecycle (upload / download / soft-remove). No edit
-// controls, no Public Comments / Internal Notes / Actions Taken (out of
-// scope for Lab 2 — see specification.md Section 3 Excluded).
+// controls; Public Comments (Lab 3) and the read-only Actions Taken (Lab 4)
+// sit below. Internal Notes never appear here.
 export default function RequesterTicketDetail() {
   const { id } = useParams<{ id: string }>()
   // Lab 3: the server reads identity from the session cookie (BR-03); the
@@ -299,6 +300,8 @@ export default function RequesterTicketDetail() {
         accept="image/jpeg,image/png,image/webp,application/pdf"
         onChange={handleUpload}
       />
+
+      <RequesterActions ticketId={ticket.id} />
 
       <div className="mt-4">
         <Conversation

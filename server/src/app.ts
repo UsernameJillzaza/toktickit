@@ -9,9 +9,12 @@ import { authenticate, requireRole } from './auth/middleware'
 import { authRouter } from './auth/routes'
 import { staffRouter } from './staff/routes'
 import { adminRouter } from './admin/routes'
+import { dashboardRouter } from './dashboard/routes'
 import { conversationRouter } from './tickets/conversation'
+import { requesterActionsRouter } from './actions/routes'
 import { generateTicketNumber } from './ticketNumber'
-import type { Priority } from './generated/prisma/client'
+import type { Priority, TicketStatus } from './generated/prisma/client'
+import { ALL_STATUSES, isTicketStatus } from './tickets/workflow'
 import {
   sanitizeFilename,
   ALLOWED_ATTACHMENT_MIME_TYPES,
@@ -31,7 +34,9 @@ app.use(authenticate)
 app.use('/api/auth', authRouter)
 app.use('/api/staff', staffRouter)
 app.use('/api/admin', adminRouter)
+app.use('/api/dashboard', dashboardRouter)
 app.use('/api/tickets', conversationRouter)
+app.use('/api/tickets', requesterActionsRouter)
 
 // Liveness landing route.
 app.get('/', (_req, res) => {
@@ -218,6 +223,21 @@ app.post('/api/tickets', requesterOnly, async (req, res) => {
   }
 })
 
+/** `open` and `resolved` are groups; anything else must be a status name. `undefined` = no filter. */
+function parseStatusFilter(raw: unknown): { notIn: TicketStatus[] } | { in: TicketStatus[] } | TicketStatus | undefined | 'invalid' {
+  if (raw === undefined) return undefined
+  if (raw === 'open') return { notIn: ['RESOLVED', 'CLOSED', 'CANCELLED'] }
+  if (raw === 'resolved') return { in: ['RESOLVED', 'CLOSED'] }
+  return isTicketStatus(raw) ? raw : 'invalid'
+}
+
+function parseWithinDays(raw: unknown): number | undefined | 'invalid' {
+  if (raw === undefined) return undefined
+  if (typeof raw !== 'string' || !/^[1-9]\d{0,2}$/.test(raw)) return 'invalid'
+  const n = Number(raw)
+  return n <= 365 ? n : 'invalid'
+}
+
 function parseIntParam(value: unknown, fallback: number): number | null {
   if (value === undefined) return fallback
   const n = Number(value)
@@ -260,8 +280,20 @@ app.get('/api/tickets', requesterOnly, async (req, res) => {
     return sendError(res, 400, 'priority must be LOW, MEDIUM, or HIGH.', 'VALIDATION_ERROR', 'priority')
   }
 
+  // Lab 4 (D-12): the selections the Requester Dashboard links to.
+  const statusFilter = parseStatusFilter(req.query.status)
+  if (statusFilter === 'invalid') {
+    return sendError(res, 400, `status must be open, resolved, or one of: ${ALL_STATUSES.join(', ')}.`, 'VALIDATION_ERROR', 'status')
+  }
+  const days = parseWithinDays(req.query.updatedWithinDays)
+  if (days === 'invalid') {
+    return sendError(res, 400, 'updatedWithinDays must be a whole number from 1 to 365.', 'VALIDATION_ERROR', 'updatedWithinDays')
+  }
+
   const where = {
     requesterId,
+    ...(statusFilter ? { currentStatus: statusFilter } : {}),
+    ...(days ? { updatedAt: { gte: new Date(Date.now() - days * 24 * 60 * 60 * 1000) } } : {}),
     ...(categoryId ? { categoryId } : {}),
     ...(priority ? { requestedPriority: priority } : {}),
     ...(search

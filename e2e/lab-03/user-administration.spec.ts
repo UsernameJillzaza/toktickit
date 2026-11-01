@@ -54,7 +54,7 @@ test('E2E-06 an admin creates a user, who must change the password at first sign
   await page.getByLabel(/^new password/i).fill(READY_PASSWORD)
   await page.getByLabel(/^confirm new password/i).fill(READY_PASSWORD)
   await page.getByRole('button', { name: /save new password/i }).click()
-  await expect(page).toHaveURL(/\/staff\/queue$/)
+  await expect(page).toHaveURL(/\/dashboard$/)
 })
 
 // E2E-07 (AC-31)

@@ -27,6 +27,9 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:5173',
     channel: 'msedge',
+    // A failed run keeps a trace (network, console, DOM at each step) in
+    // test-results/, so an intermittent failure can be explained afterwards.
+    trace: 'retain-on-failure',
   },
   // Starts the API and the Vite dev server when they aren't already running
   // (reuses them when they are, e.g. two terminals per the README).
