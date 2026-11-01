@@ -177,3 +177,40 @@ describe('API-18 nothing private reaches the Requester', () => {
     )
   })
 })
+
+// API-19 (spec 5.5, AC-29)
+describe('API-19 the dashboards by role', () => {
+  const requesterUrl = '/api/dashboard/requester'
+  const staffUrl = '/api/dashboard/staff'
+
+  it('the Requester endpoint is 200 for a Requester, 403 for IT Staff and Administrators, 401 signed out', async () => {
+    expect((await requester.agent.get(requesterUrl)).status).toBe(200)
+    for (const agent of [staff.agent, admin.agent]) {
+      const res = await agent.get(requesterUrl)
+      expect(res.status).toBe(403)
+      expect(res.body.code).toBe('FORBIDDEN')
+    }
+    expect((await request(app).get(requesterUrl)).status).toBe(401)
+  })
+
+  it('the staff endpoint is 200 for IT Staff and Administrators, 403 for a Requester, 401 signed out', async () => {
+    expect((await staff.agent.get(staffUrl)).status).toBe(200)
+    expect((await admin.agent.get(staffUrl)).status).toBe(200)
+    const res = await requester.agent.get(staffUrl)
+    expect(res.status).toBe(403)
+    expect(res.body.code).toBe('FORBIDDEN')
+    expect((await request(app).get(staffUrl)).status).toBe(401)
+  })
+
+  it('a refused call leaks no dashboard data', async () => {
+    const res = await requester.agent.get(staffUrl)
+    expect(Object.keys(res.body).sort()).toEqual(['code', 'error'])
+  })
+
+  it('a user who still has to change the password gets 403 PASSWORD_CHANGE_REQUIRED from both', async () => {
+    const pending = await createLoggedInUser({ role: 'IT_STAFF', mustChangePassword: true })
+    const res = await pending.agent.get(staffUrl)
+    expect(res.status).toBe(403)
+    expect(res.body.code).toBe('PASSWORD_CHANGE_REQUIRED')
+  })
+})
