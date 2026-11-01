@@ -76,7 +76,7 @@ Principles carried from Lab 3: each test creates and removes its own data (run-t
 
 | Test ID | Type | Requirement / AC | What it tests | Expected result | Automated test file | Final |
 | --- | --- | --- | --- | --- | --- | --- |
-| MIG-01 | Migration | AC-37 | `add_actions_taken` applied on a database with Lab 3 data | row counts of every earlier table unchanged; the new table and enum exist; drift check empty | `server/tests/lab-04/migration.api.test.ts` | Pending |
+| MIG-01 | Migration | AC-37 | `add_actions_taken` applied on a database with Lab 3 data | row counts of every earlier table unchanged; the new table and enum exist (the drift check itself is a command, recorded in Section 6) | `server/tests/lab-04/migration.api.test.ts` | Pending |
 | MIG-02 | Migration | BR-06, BR-16 / AC-02, AC-03 | the database itself rejects a follow-up note without follow-up, and a duplicate (`ticketId`, `requestKey`) | constraint errors | `server/tests/lab-04/migration.api.test.ts` | Pending |
 | MIG-03 | Migration / seed | AC-38 | run the seed repeatedly | no duplicates; Tickets with 0, 1 and several Actions exist; data for zero and non-zero metrics | `server/tests/lab-04/migration.api.test.ts` | Pending |
 | MIG-04 | Migration | BR-21 / AC-12 | Tickets that existed before the migration | listed and usable with zero Actions | `server/tests/lab-04/migration.api.test.ts` | Pending |
@@ -166,7 +166,7 @@ cd ..; npx playwright test
 
 ## 6. Final Results
 
-Pending: filled from real runs on `main` after the last merge (counts, commit hash, date and the commands), together with the README clean-checkout check (setup, migrate, seed, test and demo steps followed exactly as written).
+Pending: filled from real runs on `main` after the last merge (counts, commit hash, date and the commands), together with (a) the migration **drift check** — `npx prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --exit-code` run once against the migrated database, expected output "This is an empty migration" — and (b) the README clean-checkout check (setup, migrate, seed, test and demo steps followed exactly as written).
 
 ## 7. Known Limitations or Deferred Tests
 
