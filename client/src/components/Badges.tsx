@@ -22,3 +22,14 @@ export function PriorityBadge({ priority, prefix }: { priority: string; prefix?:
   const label = PRIORITY_LABELS[priority] ?? priority
   return <Badge kind="priority" value={priority} label={prefix ? `${prefix} ${label}` : label} />
 }
+
+// Lab 4 ui-spec §2: the symbol is part of the text, so status never relies on colour.
+const ACTION_STATUS_LABELS: Record<string, string> = { OPEN: 'Open', COMPLETED: '✓ Completed', CANCELLED: '✕ Cancelled' }
+
+export function ActionStatusBadge({ status }: { status: string }) {
+  return <Badge kind="action" value={status} label={ACTION_STATUS_LABELS[status] ?? status} />
+}
+
+export function FollowUpBadge() {
+  return <Badge kind="followup" value="NEEDED" label="! Follow-up needed" />
+}

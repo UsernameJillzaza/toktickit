@@ -55,6 +55,17 @@ body {
 .tt-badge-status-REOPENED { background-color: #fff; color: #b45309; border-color: #b45309; }
 .tt-badge-status-CANCELLED { background-color: #6b7470; color: #fff; }
 
+.tt-badge-action-OPEN { background-color: #eaf6ef; color: #006b3c; border-color: #006b3c; }
+.tt-badge-action-COMPLETED { background-color: #006b3c; color: #fff; }
+.tt-badge-action-CANCELLED { background-color: #6b7470; color: #fff; }
+.tt-badge-followup-NEEDED { background-color: #fff; color: #b45309; border-color: #b45309; }
+
+/* One Action Taken: white card, left border in the status colour (ui-spec §1). */
+.tt-action-card { border-left: 4px solid #6b7470 !important; }
+.tt-action-card-OPEN { border-left-color: #0b7a46 !important; }
+.tt-action-card-COMPLETED { border-left-color: #006b3c !important; }
+.tt-action-card-CANCELLED { border-left-color: #6b7470 !important; }
+
 .tt-badge-priority-LOW { background-color: #6b7470; color: #fff; }
 .tt-badge-priority-MEDIUM { background-color: #0b7a46; color: #fff; }
 .tt-badge-priority-HIGH { background-color: #b45309; color: #fff; }
