@@ -44,7 +44,9 @@ test.beforeAll(async ({ playwright }) => {
   const asStaff = await playwright.request.newContext({ baseURL: API })
   await asStaff.post('/api/auth/login', { data: { email: staff.email, password: staff.password } })
   await asStaff.put(`/api/staff/tickets/${ticketId}/owner`, { data: { ownerId: staff.id } })
-  await asStaff.put(`/api/staff/tickets/${ticketId}/status`, { data: { status: 'IN_PROGRESS' } })
+  // Lab 4 BR-23: a status change names the updatedAt it saw.
+  const seen = await (await asStaff.get(`/api/staff/tickets/${ticketId}`)).json()
+  await asStaff.put(`/api/staff/tickets/${ticketId}/status`, { data: { status: 'IN_PROGRESS', expectedUpdatedAt: seen.updatedAt } })
   await asStaff.post(`/api/staff/tickets/${ticketId}/notes`, { data: { body: 'Group policy drive map is missing for this OU.' } })
   await asStaff.post(`/api/tickets/${ticketId}/comments`, { data: { body: 'Checking the group policy now.' } })
   await asStaff.post('/api/auth/logout')

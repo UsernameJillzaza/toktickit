@@ -27,6 +27,19 @@ describe('UNIT-01 Action field rules', () => {
     expect(err(checkDescription('x'.repeat(2001)))).toBe('description')
   })
 
+  it('BR-04: limits count characters, so an emoji is one, not two', () => {
+    expect(checkDescription('😀'.repeat(2000)).ok).toBe(true) // 4000 UTF-16 units
+    expect(err(checkDescription('😀'.repeat(2001)))).toBe('description')
+    expect(checkFollowUp(true, '😀'.repeat(1000)).ok).toBe(true)
+    expect(err(checkFollowUp(true, '😀'.repeat(1001)))).toBe('followUpNote')
+    expect(checkAttachmentNotes('😀'.repeat(500)).ok).toBe(true)
+    expect(err(checkAttachmentNotes('😀'.repeat(501)))).toBe('attachmentNotes')
+    expect(checkResult('😀'.repeat(2000)).ok).toBe(true)
+    expect(checkRequestKey('😀'.repeat(64)).ok).toBe(true)
+    // Thai (all in the Basic Multilingual Plane) was never affected
+    expect(checkDescription('ก'.repeat(2000)).ok).toBe(true)
+  })
+
   it('BR-09: a result (or cancel reason) is required and limited to 2000; a draft result may be empty', () => {
     expect(checkResult(' fixed ')).toEqual({ ok: true, value: 'fixed' })
     expect(err(checkResult(''))).toBe('result')

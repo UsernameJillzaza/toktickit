@@ -9,10 +9,13 @@ export function sendError(
   error: string,
   code?: string,
   field?: string,
+  /** Extra members of the body, used only where api-spec names them (RESOLUTION_BLOCKED's `reasons`). */
+  extra?: Record<string, unknown>,
 ) {
-  const body: { error: string; code?: string; field?: string } = { error }
+  const body: Record<string, unknown> = { error }
   if (code) body.code = code
   if (field) body.field = field
+  if (extra) Object.assign(body, extra)
   return res.status(status).json(body)
 }
 

@@ -134,14 +134,16 @@ export default function StaffTicketDetail() {
           <TicketInfo ticket={ticket} />
         </div>
         <div className="col-lg-4 order-2">
-          {/* Keyed on the ticket's version: when the ticket really changes
-              (a save, or a 409 reload after someone else's change) the card
-              remounts with fresh controls in the same render. An identical
-              refetch keeps the key, so a choice the user just made survives.
-              Resetting in an effect instead left a gap after paint in which
-              a fast selection was wiped (found by E2E-05). */}
+          {/* Keyed on what the controls show (status, owner, IT priority): when
+              one of those really changes (a save, or a 409 reload after
+              someone else's change) the card remounts with fresh controls in
+              the same render. A refetch that only moves updatedAt (the user's
+              own note or comment) keeps the key, so a choice the user just
+              made survives; the save still reads the newest updatedAt from
+              the ticket prop. Resetting in an effect instead left a gap after
+              paint in which a fast selection was wiped (found by E2E-05). */}
           <OperationsCard
-            key={`${ticket.updatedAt}|${ticket.currentStatus}`}
+            key={`${ticket.currentStatus}|${ticket.owner?.id ?? 'none'}|${ticket.itPriority}`}
             ticket={ticket}
             meId={user!.id}
             assignees={assignees}
@@ -157,6 +159,7 @@ export default function StaffTicketDetail() {
         </div>
         <div className="col-lg-4 order-3 order-lg-4">
           <Conversation
+            onPosted={load}
             endpoint={`/api/staff/tickets/${ticket.id}/notes`}
             heading="Internal notes — IT Staff and Administrators only"
             inputLabel="New internal note"
@@ -169,6 +172,7 @@ export default function StaffTicketDetail() {
           <AttachmentsCard attachments={ticket.attachments} />
           <div className="mt-3">
             <Conversation
+              onPosted={load}
               endpoint={`/api/tickets/${ticket.id}/comments`}
               heading="Public comments — visible to the requester"
               inputLabel="New public comment"
@@ -298,7 +302,7 @@ function OperationsCard({ ticket, meId, assignees, onSaved, reload, saved, error
   function requestStatusChange() {
     if (!statusChoice) return
     if (CONFIRM[statusChoice]) setConfirming(statusChoice)
-    else save('status', 'status', { status: statusChoice })
+    else save('status', 'status', { status: statusChoice, expectedUpdatedAt: ticket.updatedAt })
   }
 
   const ownerLine = ticket.owner ? (
@@ -445,7 +449,7 @@ function OperationsCard({ ticket, meId, assignees, onSaved, reload, saved, error
           onConfirm={() => {
             const status = confirming
             setConfirming(null)
-            save('status', 'status', { status })
+            save('status', 'status', { status, expectedUpdatedAt: ticket.updatedAt })
           }}
         />
       )}

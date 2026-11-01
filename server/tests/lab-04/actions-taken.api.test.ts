@@ -88,6 +88,17 @@ describe('API-02 the same requestKey twice', () => {
     expect(await count(ticketId)).toBe(1)
   })
 
+  it('a repeat must still have the shape of a create: an unknown field is a 400 even then', async () => {
+    const ticketId = await newTicket()
+    const requestKey = key()
+    const first = await create(staff.agent, ticketId, { requestKey, description: 'Original' })
+    const repeat = await create(staff.agent, ticketId, { requestKey, description: 'Original', status: 'COMPLETED' })
+    expect(repeat.status).toBe(400)
+    expect(repeat.body.field).toBe('status')
+    const row = await prisma.actionTaken.findUniqueOrThrow({ where: { id: first.body.id } })
+    expect(row).toMatchObject({ status: 'OPEN', description: 'Original', version: 1 })
+  })
+
   it('the same key on another Ticket is a different Action', async () => {
     const [a, b] = [await newTicket(), await newTicket()]
     const requestKey = key()

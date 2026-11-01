@@ -53,7 +53,7 @@ IDs restart at BR-01 for Lab 4 as the handout asks. "Lab 3 BR-nn" means a rule f
 - **BR-01** An Action Taken belongs to exactly one Ticket.
 - **BR-02** The Ticket Owner coordinates the Ticket, but an Action may be performed and recorded by a different IT Staff member or Administrator. The Owner is not required to create actions.
 - **BR-03** `performedBy` is filled automatically with the signed-in user when the Action is created. While the Action is Open it may be changed to another **active** IT Staff member or Administrator; an inactive or other-role user is rejected (`PERFORMER_INVALID`). `createdBy` never changes.
-- **BR-04** `description` is required, trimmed, 1–2000 characters.
+- **BR-04** `description` is required, trimmed, 1–2000 characters. Limits in this document count **characters** (an emoji is one); Lab 3's comment and note bodies keep counting UTF-16 units, a recorded Lab 3 limitation.
 - **BR-05** `actionAt` defaults to the server's current time and may be set to a past time; it may not be more than 5 minutes in the future (clock-skew tolerance).
 - **BR-06** `followUpRequired` is `false` by default. When it is `true`, `followUpNote` is required (1–1000 characters, trimmed). When it is `false`, `followUpNote` must be absent or empty (stored as `null`).
 - **BR-07** `attachmentNotes` is optional free text, at most 500 characters, saying which file or image to look for. No file is uploaded.
@@ -65,7 +65,7 @@ IDs restart at BR-01 for Lab 4 as the handout asks. "Lab 3 BR-nn" means a rule f
 - **BR-13** All Action text is plain text, shown escaped, never as HTML.
 - **BR-14** A Requester sees every field of every Action on their own Ticket, read-only. Another Requester's Ticket gives `404`, the same as a missing Ticket. Internal Notes are never part of Actions Taken or their endpoints.
 - **BR-15** Every Action has an integer `version`, starting at 1 and increased by every successful change. Edit, complete and cancel must send the version they saw; a different current version gives `409 STALE_UPDATE` and changes nothing.
-- **BR-16** Creating an Action carries a client-generated `requestKey` (1–64 characters). The pair (Ticket, `requestKey`) is unique. A repeated request with the same key returns the already-created Action with `200` and creates nothing new, whatever else the repeated body contains.
+- **BR-16** Creating an Action carries a client-generated `requestKey` (1–64 characters). The pair (Ticket, `requestKey`) is unique. A repeated request with the same key returns the already-created Action with `200` and creates nothing new, whatever field *values* the repeated body carries. The repeat must still have the shape of a create request: an unknown field is a `400` even on a repeat, because shape is checked before anything is looked up.
 - **BR-17** Every successful Action change moves the Ticket's `updatedAt` (Last Updated), as Lab 3 BR-26 does for comments and notes.
 
 ### 5.2 Ticket workflow and resolution

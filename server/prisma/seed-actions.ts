@@ -7,7 +7,12 @@ import type { PrismaClient } from '../src/generated/prisma/client'
 // gate and the dashboards all have something real to show. Fictional text.
 //
 // Rules the data keeps true (so the seed never contradicts the gate):
-//   * a RESOLVED or CLOSED Ticket has at least one COMPLETED Action and no OPEN one;
+//   * a RESOLVED or CLOSED Ticket that has Actions has no OPEN one and at least
+//     one COMPLETED one;
+//   * two finished Tickets ("VPN certificate warning on new laptop", RESOLVED,
+//     and "Laptop battery swells and lifts the keyboard", CLOSED) are left
+//     with NO Actions on purpose: they stand for Tickets finished before Lab 4,
+//     which the gate must not trap (BR-21, AC-23);
 //   * a Ticket with an OPEN Action is in a workable status (BR-11).
 // `ticket` is the seeded summary; `by` is who did it and `createdBy` who
 // recorded it (email local parts of @toktickit.test). Safe to run again: an
@@ -105,11 +110,17 @@ export const SEED_ACTIONS: SeedAction[] = [
 
 const HOUR_MS = 60 * 60 * 1000
 
-export async function seedActions(prisma: PrismaClient): Promise<{ total: number; created: number }> {
+export async function seedActions(prisma: PrismaClient): Promise<{ total: number; created: number; skipped: string[] }> {
   let created = 0
+  const skipped: string[] = []
   for (const a of SEED_ACTIONS) {
     const ticket = await prisma.ticket.findFirst({ where: { summary: a.ticket }, orderBy: { id: 'asc' } })
-    if (!ticket) continue // the ticket seed is skipped or was changed: nothing to attach to
+    if (!ticket) {
+      // The Ticket seed was skipped or its summary was edited. Say so — a silent
+      // skip would read exactly like a clean second run (FR-17, AC-38).
+      skipped.push(a.ticket)
+      continue
+    }
     const exists = await prisma.actionTaken.findFirst({ where: { ticketId: ticket.id, requestKey: a.key } })
     if (exists) continue
     const [by, createdBy] = await Promise.all(
@@ -134,5 +145,5 @@ export async function seedActions(prisma: PrismaClient): Promise<{ total: number
     })
     created++
   }
-  return { total: SEED_ACTIONS.length, created }
+  return { total: SEED_ACTIONS.length, created, skipped: [...new Set(skipped)] }
 }

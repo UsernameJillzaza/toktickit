@@ -11,6 +11,13 @@ export const REQUEST_KEY_MAX = 64
 /** BR-05: how far into the future actionAt may be (clock-skew tolerance). */
 export const FUTURE_TOLERANCE_MS = 5 * 60 * 1000
 
+/**
+ * The limits in the spec count characters. `String.length` counts UTF-16 units,
+ * so an emoji would count as two; count code points instead. (Lab 3's comment
+ * and note bodies still count UTF-16 units — a recorded limitation there.)
+ */
+const charCount = (s: string) => Array.from(s).length
+
 export type FieldError = { field: string; message: string }
 
 /** Either the cleaned value or the first rule that failed. */
@@ -30,7 +37,7 @@ function text(raw: unknown, field: string, label: string, max: number, required:
   if (value.length === 0) {
     return required ? fail(field, `${label} is required.`) : { ok: true, value: null }
   }
-  if (value.length > max) return fail(field, `${label} must be at most ${max} characters.`)
+  if (charCount(value) > max) return fail(field, `${label} must be at most ${max} characters.`)
   return { ok: true, value }
 }
 
@@ -82,7 +89,7 @@ export function checkFollowUp(
 export function checkRequestKey(raw: unknown): Checked<string> {
   if (typeof raw !== 'string') return fail('requestKey', 'requestKey is required.')
   const value = raw.trim()
-  if (value.length < 1 || value.length > REQUEST_KEY_MAX) {
+  if (charCount(value) < 1 || charCount(value) > REQUEST_KEY_MAX) {
     return fail('requestKey', `requestKey must be 1 to ${REQUEST_KEY_MAX} characters.`)
   }
   return { ok: true, value }
