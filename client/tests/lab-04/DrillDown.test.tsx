@@ -157,3 +157,46 @@ describe('UI-22 the queue reads the dashboard’s parameters from the URL', () =
     expect(await screen.findByText('No tickets match these filters.')).toBeInTheDocument()
   })
 })
+
+// Review of #76.
+describe('UI-21 / UI-22 the opened list says its total, and explains a refused filter', () => {
+  it('My Tickets prints the total next to the chips so it can be read against the card', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          items: [1, 2, 3].map((id) => ({ id, ticketNumber: `TKT-2026-00000${id}`, summary: `Ticket ${id}`, requestedPriority: 'LOW', currentStatus: 'OPEN', createdAt: '2026-09-01T00:00:00Z', category: { name: 'Hardware' } })),
+          total: 3,
+          page: 1,
+          pageSize: 10,
+        }),
+      })),
+    )
+    renderMyTickets('/my-tickets?status=open')
+    expect(await screen.findByText('3 tickets')).toBeInTheDocument()
+  })
+
+  it('My Tickets shows the server’s message when it refuses a filter value', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: false, status: 400, json: async () => ({ error: 'status must be open, resolved, or one of: NEW, OPEN.', code: 'VALIDATION_ERROR', field: 'status' }) })),
+    )
+    renderMyTickets('/my-tickets?status=banana')
+    expect(await screen.findByRole('alert')).toHaveTextContent('status must be open, resolved')
+  })
+
+  it('the queue shows the server’s message when it refuses requesterResolved', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) =>
+        url === '/api/categories'
+          ? { ok: true, status: 200, json: async () => [] }
+          : { ok: false, status: 400, json: async () => ({ error: 'requesterResolved must be true.', code: 'VALIDATION_ERROR', field: 'requesterResolved' }) },
+      ),
+    )
+    renderQueue('/staff/queue?requesterResolved=false')
+    expect(await screen.findByRole('alert')).toHaveTextContent('requesterResolved must be true.')
+  })
+})

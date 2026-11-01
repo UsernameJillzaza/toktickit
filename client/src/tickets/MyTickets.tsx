@@ -34,6 +34,8 @@ export default function MyTickets() {
   const daysParam = params.get('updatedWithinDays') ?? ''
 
   const [listState, setListState] = useState<ListState>('loading')
+  // A filter the server refused (a hand-edited URL) is explained, not just "unable to load".
+  const [refusal, setRefusal] = useState<string | null>(null)
   const [items, setItems] = useState<TicketRow[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -64,11 +66,20 @@ export default function MyTickets() {
         if (daysParam) params.set('updatedWithinDays', daysParam)
 
         const res = await apiFetch(`/api/tickets?${params.toString()}`)
+        if (res.status === 400) {
+          const refused = await res.json().catch(() => ({}))
+          if (!cancelled) {
+            setRefusal(typeof refused.error === 'string' ? refused.error : null)
+            setListState('failure')
+          }
+          return
+        }
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const body = await res.json()
         if (cancelled) return
         setItems(body.items)
         setTotal(body.total)
+        setRefusal(null)
         setListState('ready')
       } catch {
         if (!cancelled) setListState('failure')
@@ -157,13 +168,17 @@ export default function MyTickets() {
         </ul>
       )}
 
+      {listState === 'ready' && total > 0 && (
+        <p className="text-secondary mb-2">{total === 1 ? '1 ticket' : `${total} tickets`}</p>
+      )}
+
       {listState === 'loading' && (
         <p role="status">⏳ Loading tickets…</p>
       )}
 
       {listState === 'failure' && (
         <div className="alert alert-danger" role="alert">
-          Unable to load your tickets. Please try again.
+          {refusal ?? 'Unable to load your tickets. Please try again.'}
         </div>
       )}
 
