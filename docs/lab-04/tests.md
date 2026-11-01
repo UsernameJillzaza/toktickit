@@ -172,7 +172,7 @@ Run on 2026-11-01 on `feature/70-final-docs` after the review follow-ups (code c
 | --- | --- | --- |
 | Server (Vitest + Supertest) | `cd server; npm test` | 26 files, **466 tests, all passed** (260 from Labs 1–3 and 206 for Lab 4) |
 | Server type check | `cd server; npx tsc --noEmit` | no errors |
-| Client (Vitest + Testing Library) | `cd client; npm test` | 18 files, **183 tests, all passed** |
+| Client (Vitest + Testing Library) | `cd client; npm test` | 18 files, **184 tests, all passed** |
 | Client type check | `cd client; npx tsc --noEmit` | no errors |
 | E2E (Playwright, Edge) | `npx playwright test` | **39 tests, all passed** (19 from Labs 2–3 plus 20 new: E2E-01 to E2E-04 and RESP-01) |
 | Migration drift | `cd server; npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code` | `No difference detected.` (exit code 0) |
