@@ -166,3 +166,22 @@ body {
     justify-content: center;
   }
 }
+
+/* Dashboard cards and panels (Lab 4 ui-spec §1). Hover and keyboard focus
+   inside a card get the same primary-green ring. */
+.tt-metric-card {
+  background: #fff;
+  border: 1px solid #dfe5e1;
+  border-radius: 8px;
+  padding: 16px;
+}
+.tt-metric-card:hover,
+.tt-metric-card:focus-within {
+  border-color: #006b3c;
+  box-shadow: 0 0 0 2px rgba(0, 107, 60, 0.15);
+}
+.tt-metric-accent { border-left: 4px solid #b45309; }
+.tt-skeleton {
+  background: linear-gradient(90deg, #eceeed, #f6f7f6, #eceeed);
+  border-color: transparent;
+}

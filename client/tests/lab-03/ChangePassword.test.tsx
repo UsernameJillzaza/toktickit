@@ -26,7 +26,7 @@ function renderChangePassword(fetchImpl: (url: string, init?: RequestInit) => Pr
       <AuthProvider initialUser={FORCED_USER}>
         <Routes>
           <Route path="/change-password" element={<ChangePassword />} />
-          <Route path="/my-tickets" element={<p>MY TICKETS PAGE</p>} />
+          <Route path="/dashboard" element={<p>DASHBOARD PAGE</p>} />
         </Routes>
       </AuthProvider>
     </MemoryRouter>,
@@ -113,13 +113,13 @@ describe('UI-08 server validation', () => {
 
 // UI-09 (AC-02): success continues into the app as the user's role.
 describe('UI-09 success', () => {
-  it('posts the passwords, then continues to the requester home page', async () => {
+  it('posts the passwords, then continues to the home page (the Dashboard since Lab 4)', async () => {
     const fetchMock = renderChangePassword(async () =>
       jsonResponse(200, { user: { ...FORCED_USER, mustChangePassword: false } }),
     )
     await fill('Welcome2026!', 'Brandnew456', 'Brandnew456')
 
-    expect(await screen.findByText('MY TICKETS PAGE')).toBeInTheDocument()
+    expect(await screen.findByText('DASHBOARD PAGE')).toBeInTheDocument()
     const [url, init] = fetchMock.mock.calls[0]
     expect(url).toBe('/api/auth/change-password')
     expect(JSON.parse(String(init?.body))).toEqual({
