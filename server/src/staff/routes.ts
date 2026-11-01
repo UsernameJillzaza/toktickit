@@ -81,6 +81,12 @@ function parseQueueQuery(req: Request): QueueQuery {
   const categoryId = positiveInt(q.categoryId, 'categoryId')
   if (categoryId) and.push({ categoryId })
 
+  // Lab 4 (D-12): the selection behind the dashboard's "Requester reports resolved" card.
+  if (q.requesterResolved !== undefined && q.requesterResolved !== '') {
+    if (q.requesterResolved !== 'true') throw new QueryError('requesterResolved', 'requesterResolved must be true.')
+    and.push({ requesterResolvedAt: { not: null } })
+  }
+
   const search = typeof q.search === 'string' ? q.search.trim() : ''
   if (search) {
     const contains = { contains: search, mode: 'insensitive' as const }

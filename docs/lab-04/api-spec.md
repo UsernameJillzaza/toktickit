@@ -197,7 +197,7 @@ Only the signed-in Requester's Tickets; no IT Priority anywhere. `403` for IT St
 }
 ```
 
-`users` is present **only** for `ADMIN` (BR-31). `byStatus` always has all eight keys and `byItPriority` all four, with `0` where nothing matches (BR-29); lists are `[]` when empty. `owner` is `null` for an unowned Ticket. `description` in `myRecentActions` is cut to 120 characters. `403` for a Requester, `401` signed out.
+`users` is present **only** for `ADMIN` (BR-31). `byStatus` always has all eight keys and `byItPriority` all four, with `0` where nothing matches (BR-29); lists are `[]` when empty. `owner` is `null` for an unowned Ticket. `myRecentActions` lists the Actions whose *performer* is the signed-in user. Its `description` is at most 120 characters: a longer text is cut to 119 characters followed by "…". `403` for a Requester, `401` signed out.
 
 ## Summary of HTTP statuses added in Lab 4
 
